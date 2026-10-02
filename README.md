@@ -4,6 +4,8 @@
 
 Watch reaction videos in sync with your own movie or series. The reaction sets the pace, and the movie follows it with an adjustable, millisecond-accurate offset.
 
+![Glotz3r with a movie and a reaction side by side, the sessions panel on the left and the offset, volume and view controls below](screenshot.png)
+
 The whole application is a single web page ([index.html](index.html)). A small executable serves it locally and opens it in the browser.
 
 ## Build and run
@@ -107,5 +109,6 @@ The app runs at the same address (`http://127.0.0.1:8097`), so login and session
 |---|---|
 | `index.html` | The entire application (HTML, CSS, JavaScript) |
 | `sw.js`, `manifest.webmanifest` | Make the page installable as an app; `sw.js` keeps it in the browser cache |
+| `screenshot.png` | Screenshot for this README |
 | `main.go`, `go.mod` | Small local server that serves the embedded `index.html` |
 | `.claude/launch.json` | Preview configuration for Claude Code |

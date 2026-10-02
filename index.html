@@ -106,7 +106,7 @@
   .tree details > :not(summary) { margin-left: 18px; }
   .tree summary { cursor: pointer; padding: 4px 6px; border-radius: 6px; }
   .tree summary:hover { background: var(--ctl); }
-  #sessions:empty::before { content: 'Noch keine.'; color: var(--dim); }
+  #sessions:empty::before { content: attr(data-empty); color: var(--dim); }
   #sessions span { flex-wrap: wrap; padding: 8px 0; margin: 0; border-bottom: 1px solid var(--line); }
 
   /* --- Stage --- */
@@ -361,7 +361,7 @@ const I18N = { de: {
   'Install as app': 'Als App installieren', 'Afterwards Glotz3r starts like a program of its own – even without the server running.': 'Danach startet Glotz3r wie ein eigenes Programm – auch ohne laufenden Server.',
   'Title, Jellyfin id or link…': 'Titel, Jellyfin-Id oder -Link…', 'Sign in to Jellyfin in the settings first': 'Erst in den Einstellungen bei Jellyfin anmelden',
   'Language': 'Sprache', 'Jellyfin account': 'Jellyfin-Konto', 'Settings: Jellyfin account and language': 'Einstellungen: Jellyfin-Konto und Sprache',
-  'Select': 'Auswählen', '(empty)': '(leer)', 'Load more ({0} of {1})': 'Weitere laden ({0} von {1})', 'Resume': 'Fortsetzen', 'at': 'bei',
+  'Select': 'Auswählen', '(empty)': '(leer)', 'Load more ({0} of {1})': 'Weitere laden ({0} von {1})', 'Resume': 'Fortsetzen', 'None yet.': 'Noch keine.', 'at': 'bei',
   // Stage
   'Nothing loaded yet': 'Noch nichts geladen',
   'Choose movie and reaction under “Sources”<br>or drag video files here.': 'Film und Reaction unter „Quellen“ wählen<br>oder Videodateien hierher ziehen.',
@@ -804,6 +804,7 @@ function openLink() {
 
 function renderSessions() {
   const all = sessions();
+  $('sessions').dataset.empty = t('None yet.');
   $('sessions').replaceChildren(...Object.entries(all).sort((a, b) => b[1].at - a[1].at).map(([k, s]) => row(
     btn(t('Resume'), () => openSession(s), 'play'),
     btn('', () => copyLink(s), 'link'),
