@@ -126,6 +126,8 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
+The same workflow then publishes `web/` on GitHub Pages, so the page is also available at `https://onkeliroh.github.io/Glotz3r/` without downloading anything. This needs **Settings → Pages → Source: GitHub Actions** to be set once in the repository. The hosted page is served via https, so it only reaches a Jellyfin server that is itself available via https; with an http-only Jellyfin use the executable.
+
 The workflow builds the executables for Windows, Linux and macOS, packs `web/` into `glotz3r-web.zip`, writes `checksums.txt` (SHA-256) and creates a GitHub release named after the tag with automatically generated release notes. The tag has to start with `v`. It is also written into the page as the version shown on the settings tab; a build from source shows `dev`. The macOS executables are not signed, so macOS warns on first start.
 
 ## Project layout
@@ -136,5 +138,5 @@ The workflow builds the executables for Windows, Linux and macOS, packs `web/` i
 | `web/sw.js`, `web/manifest.webmanifest`, `web/icon-*.png` | Make the page installable as an app; `sw.js` keeps it in the browser cache |
 | `docs/screenshot.png` | Screenshot for this README |
 | `main.go`, `go.mod` | Small local server that serves the embedded files from `web/` |
-| `.github/workflows/release.yml` | Builds the executables and publishes a GitHub release when a `v*` tag is pushed |
+| `.github/workflows/release.yml` | Builds the executables, publishes a GitHub release and deploys `web/` to GitHub Pages when a `v*` tag is pushed |
 | `.claude/launch.json` | Preview configuration for Claude Code |
