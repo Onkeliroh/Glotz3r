@@ -50,7 +50,7 @@ go run .
 
 The Go executable is not a requirement. It only exists because I was too lazy to deploy the page on another server. Glotz3r is a static page, so there are two other ways to run it:
 
-- **Any web server** (nginx or similar): serve the contents of `web/`. Two files normally come from the Go server and are missing then: `config.json` (optional, `{"jellyfin": "https://…"}` presets the Jellyfin address) and `icon.png` (the app icon). The page itself works without them; installing it as an app needs both to be present.
+- **Any web server** (nginx or similar): serve the contents of `web/`. Installing it as an app works there too. Only `config.json` normally comes from the Go server; it is optional, and a file with `{"jellyfin": "https://…"}` presets the Jellyfin address.
 - **No server at all:** open [web/index.html](web/index.html) directly in the browser. This works without installing it as an app (PWA), and YouTube reactions are not available because YouTube embedding needs http/https.
 
 ## Usage
@@ -115,7 +115,7 @@ The app runs at the same address (`http://127.0.0.1:8097`), so login and session
 | File | Purpose |
 |---|---|
 | `web/index.html` | The entire application (HTML, CSS, JavaScript) |
-| `web/sw.js`, `web/manifest.webmanifest` | Make the page installable as an app; `sw.js` keeps it in the browser cache |
+| `web/sw.js`, `web/manifest.webmanifest`, `web/icon-*.png` | Make the page installable as an app; `sw.js` keeps it in the browser cache |
 | `docs/screenshot.png` | Screenshot for this README |
 | `main.go`, `go.mod` | Small local server that serves the embedded files from `web/` |
 | `.claude/launch.json` | Preview configuration for Claude Code |
