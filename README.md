@@ -10,6 +10,10 @@ The whole application is a single web page ([web/index.html](web/index.html)). A
 
 ## Build and run
 
+### Download
+
+Ready-made executables for Windows, Linux and macOS are attached to each [release](https://github.com/Onkeliroh/Glotz3r/releases), together with `glotz3r-web.zip` (the page alone, for hosting on any web server) and `checksums.txt`.
+
 ### As an executable
 
 You need [Go](https://go.dev/dl/). Build:
@@ -110,6 +114,20 @@ The app runs at the same address (`http://127.0.0.1:8097`), so login and session
 - **YouTube** only works when the page is served via http/https, not when `index.html` is opened directly with a double click. Some videos do not allow embedding.
 - **Pauses in the reaction video:** If the person in the video pauses their movie, the offset shifts and has to be readjusted by hand.
 
+## Releasing
+
+A release is built and published by GitHub Actions ([release.yml](.github/workflows/release.yml)) as soon as a version tag is pushed:
+
+```bash
+git tag v1.0.0
+```
+
+```bash
+git push origin v1.0.0
+```
+
+The workflow builds the executables for Windows, Linux and macOS, packs `web/` into `glotz3r-web.zip`, writes `checksums.txt` (SHA-256) and creates a GitHub release named after the tag with automatically generated release notes. The tag has to start with `v`. The macOS executables are not signed, so macOS warns on first start.
+
 ## Project layout
 
 | File | Purpose |
@@ -118,4 +136,5 @@ The app runs at the same address (`http://127.0.0.1:8097`), so login and session
 | `web/sw.js`, `web/manifest.webmanifest`, `web/icon-*.png` | Make the page installable as an app; `sw.js` keeps it in the browser cache |
 | `docs/screenshot.png` | Screenshot for this README |
 | `main.go`, `go.mod` | Small local server that serves the embedded files from `web/` |
+| `.github/workflows/release.yml` | Builds the executables and publishes a GitHub release when a `v*` tag is pushed |
 | `.claude/launch.json` | Preview configuration for Claude Code |
