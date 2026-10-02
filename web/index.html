@@ -15,7 +15,7 @@
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; }
-  /* Header on top, sources panel on the left (collapsible), stage above the control dock on the right */
+  /* Header on top, menu panel on the left (collapsible), stage above the control dock on the right */
   body { margin: 0; background: var(--bg); color: var(--text); display: grid;
     grid-template: "head head" auto "side stage" minmax(0, 1fr) "side dock" auto / auto minmax(0, 1fr); }
   [hidden] { display: none !important; }
@@ -43,6 +43,7 @@
   [data-i=clap] { --i: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11h18v9H3zM3 11l-.8-3.8 15.5-4 1 3.8zM7 6.2l2.5 3.6M12 4.9l2.5 3.6"/></svg>'); }
   [data-i=link] { --i: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>'); }
   [data-i=keys] { --i: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg>'); }
+  [data-i=menu] { --i: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>'); }
   [data-i=folder] { --i: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>'); }
   [data-i=sliders] { --i: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h8M16 18h4"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="14" cy="18" r="2"/></svg>'); }
   [data-i=eye] { --i: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>'); }
@@ -78,7 +79,7 @@
   #lang svg { border-radius: 2px; }
   .pane h3 { margin: 14px 0 6px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--dim); }
 
-  /* --- Sources panel --- */
+  /* --- Menu panel (sources, sessions, settings) --- */
   #setup { grid-area: side; display: none; flex-direction: column; width: 400px; min-height: 0; background: var(--panel); border-right: 1px solid var(--line); }
   body.panel #setup { display: flex; }
   .tabs { display: flex; border-bottom: 1px solid var(--line); }
@@ -171,7 +172,7 @@
 <body>
 <header>
   <b class="brand" title="Spectatorem spectantem specta">Glotz<span>3</span>r</b>
-  <button id="panelBtn" data-i="folder" title="Show / hide sources panel" data-t>Sources</button>
+  <button id="panelBtn" data-i="menu" title="Show / hide menu" data-t>Menu</button>
   <button class="chip flat" data-tab="movie"><small data-t>Movie</small><b data-now="movie" data-t>not selected</b></button>
   <button class="chip flat" data-tab="reaction"><small>Reaction</small><b data-now="reaction" data-t>not selected</b></button>
   <span class="grow"></span>
@@ -264,7 +265,7 @@
   </div>
   <div id="empty"><div>
     <b data-t>Nothing loaded yet</b>
-    <p data-t>Choose movie and reaction under “Sources”<br>or drag video files here.</p>
+    <p data-t>Choose movie and reaction in the menu<br>or drag video files here.</p>
     <button class="primary" data-tab="movie" data-i="folder" data-t>Choose sources</button>
   </div></div>
   <button id="rhidden" hidden title="Reaction picture hidden, audio keeps playing – click or press V to show it"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4" height="6" rx="1"/><rect x="17" y="14" width="4" height="6" rx="1"/></svg></button>
@@ -350,8 +351,8 @@ const LANGS = { // flag: [viewBox, SVG content]
 };
 const I18N = { de: {
   // Header & panel
-  'Sources': 'Quellen', 'Movie': 'Film', 'not selected': 'nicht gewählt', 'Keys': 'Tasten', 'Session link': 'Session-Link',
-  'Show / hide sources panel': 'Quellen-Panel ein- / ausblenden', 'Copy link with sources, offset and position': 'Link mit Quellen, Offset und Position kopieren',
+  'Menu': 'Menü', 'Movie': 'Film', 'not selected': 'nicht gewählt', 'Keys': 'Tasten', 'Session link': 'Session-Link',
+  'Show / hide menu': 'Menü ein- / ausblenden', 'Copy link with sources, offset and position': 'Link mit Quellen, Offset und Position kopieren',
   'Keyboard shortcuts (H)': 'Tastenübersicht (H)', 'Close panel': 'Panel schließen', 'Dismiss message': 'Meldung schließen',
   'Current': 'Aktuell', 'nothing selected yet': 'noch nichts gewählt', 'Local file': 'Lokale Datei', 'Search': 'Suchen', 'Load': 'Laden',
   'YouTube link': 'YouTube-Link', 'or drag a file onto the video area': 'oder Datei auf den Videobereich ziehen',
@@ -364,7 +365,7 @@ const I18N = { de: {
   'Select': 'Auswählen', '(empty)': '(leer)', 'Load more ({0} of {1})': 'Weitere laden ({0} von {1})', 'Resume': 'Fortsetzen', 'None yet.': 'Noch keine.', 'at': 'bei',
   // Stage
   'Nothing loaded yet': 'Noch nichts geladen',
-  'Choose movie and reaction under “Sources”<br>or drag video files here.': 'Film und Reaction unter „Quellen“ wählen<br>oder Videodateien hierher ziehen.',
+  'Choose movie and reaction in the menu<br>or drag video files here.': 'Film und Reaction im Menü wählen<br>oder Videodateien hierher ziehen.',
   'Choose sources': 'Quellen wählen',
   'Reaction picture hidden, audio keeps playing – click or press V to show it': 'Reaction-Bild ausgeblendet, Ton läuft – klicken oder Taste V zum Einblenden',
   'Drop movie here<small>video file</small>': 'Film hier ablegen<small>Videodatei</small>',

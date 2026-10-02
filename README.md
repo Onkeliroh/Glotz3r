@@ -55,7 +55,7 @@ The Go executable is not a requirement. It only exists because I was too lazy to
 
 ## Usage
 
-1. Open the **Sources** panel on the left and, if you use Jellyfin, sign in to Jellyfin on the settings tab (gear icon) with your password or Quick Connect.
+1. Open the **Menu** on the left and, if you use Jellyfin, sign in to Jellyfin on the settings tab (gear icon) with your password or Quick Connect.
 2. Choose one source each on the **Movie** and **Reaction** tabs. The header shows what is loaded.
 3. Play the reaction. As soon as the person in the video starts their movie, press **Movie starts now** (key `R`). This sets the offset.
 4. Fine-tune the offset if needed: **−** if your movie is behind, **+** if it is ahead.
@@ -93,14 +93,14 @@ Offset and position are saved automatically per reaction in the browser and appl
 
 ### Language
 
-English and German, switchable on the settings tab (gear icon) of the sources panel; the default is the browser language. Another language only needs an entry in `LANGS` and a dictionary in `I18N` (both in `web/index.html`; the key is the English text). Missing translations are reported in the browser console.
+English and German, switchable on the settings tab (gear icon) of the menu; the default is the browser language. Another language only needs an entry in `LANGS` and a dictionary in `I18N` (both in `web/index.html`; the key is the English text). Missing translations are reported in the browser console.
 
 ## Install as an app (no need to start the server)
 
 Glotz3r can be installed as an app (PWA). It then starts like a program of its own from the start menu, even when the `.exe` is not running:
 
 1. Start the `.exe` once and open the page in Chrome or Edge.
-2. In the sources panel under settings (gear icon) press **Install as app**, or use the install icon in the address bar.
+2. In the menu under settings (gear icon) press **Install as app**, or use the install icon in the address bar.
 
 The app runs at the same address (`http://127.0.0.1:8097`), so login and sessions are kept. The browser keeps the page cached. After changing `web/index.html`, start the `.exe` once and open the app; it then fetches the new version. Firefox cannot install apps, but after the first visit it also opens the page at that address without the server.
 
