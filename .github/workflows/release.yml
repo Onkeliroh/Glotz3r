@@ -21,6 +21,9 @@ jobs:
         env:
           CGO_ENABLED: '0'
         run: |
+          # stamp the tag into the page (shown in the settings); fail if the placeholder is gone
+          sed -i "s/const VERSION = 'dev'/const VERSION = '$GITHUB_REF_NAME'/" web/index.html
+          grep -q "const VERSION = '$GITHUB_REF_NAME'" web/index.html
           mkdir dist
           for target in windows/amd64 linux/amd64 linux/arm64 darwin/amd64 darwin/arm64; do
             os=${target%/*} arch=${target#*/}

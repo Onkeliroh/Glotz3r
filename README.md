@@ -126,7 +126,7 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
-The workflow builds the executables for Windows, Linux and macOS, packs `web/` into `glotz3r-web.zip`, writes `checksums.txt` (SHA-256) and creates a GitHub release named after the tag with automatically generated release notes. The tag has to start with `v`. The macOS executables are not signed, so macOS warns on first start.
+The workflow builds the executables for Windows, Linux and macOS, packs `web/` into `glotz3r-web.zip`, writes `checksums.txt` (SHA-256) and creates a GitHub release named after the tag with automatically generated release notes. The tag has to start with `v`. It is also written into the page as the version shown on the settings tab; a build from source shows `dev`. The macOS executables are not signed, so macOS warns on first start.
 
 ## Project layout
 
