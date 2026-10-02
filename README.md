@@ -4,6 +4,8 @@
 
 Watch reaction videos in sync with your own movie or series. The reaction sets the pace, and the movie follows it with an adjustable, millisecond-accurate offset.
 
+**▶ Try it right now: [onkeliroh.github.io/Glotz3r](https://onkeliroh.github.io/Glotz3r/)** – nothing to download or install. (The hosted page is served via https, so it only reaches a Jellyfin server that is available via https as well; for an http-only Jellyfin use the [executable](#download).)
+
 ![Glotz3r with a movie and a reaction side by side, the sessions panel on the left and the offset, volume and view controls below](docs/screenshot.png)
 
 The whole application is a single web page ([web/index.html](web/index.html)). A small executable serves it locally and opens it in the browser.
