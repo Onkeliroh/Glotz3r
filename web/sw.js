@@ -1,6 +1,6 @@
 // Service worker: keeps the app in the browser cache so that, once installed, it starts even without the server running.
 // Network first (if the server is running you always get the current version), otherwise the last cached state.
-const CACHE = 'glotz3r-v2';
+const CACHE = 'glotz3r-v3';
 self.addEventListener('install', e => {
   self.skipWaiting();
   // Each file on its own: a missing one (e.g. config.json on a plain web server) must not abort the installation.
@@ -11,7 +11,8 @@ self.addEventListener('activate', e => e.waitUntil(caches.keys().then(ks => Prom
 self.addEventListener('fetch', e => {
   const u = new URL(e.request.url);
   // Only the app itself and hls.js; Jellyfin, YouTube and local videos (blob:) pass through untouched.
-  if (e.request.method !== 'GET' || !u.protocol.startsWith('http') || (u.origin !== location.origin && u.hostname !== 'cdn.jsdelivr.net')) return;
+  // Scope, not origin: a Jellyfin behind the same host (reverse proxy) must not end up in the cache.
+  if (e.request.method !== 'GET' || !u.protocol.startsWith('http') || (!u.href.startsWith(registration.scope) && u.hostname !== 'cdn.jsdelivr.net')) return;
   e.respondWith(fetch(e.request).then(r => {
     if (r.ok || r.type === 'opaque') { const copy = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); }
     return r;

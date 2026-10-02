@@ -119,6 +119,7 @@
   /* Layout templates: the reaction width always comes from the "Size" slider */
   #stage[data-layout="side-left"] #reaction { order: -1; }
   #stage[data-layout^="pip"] { display: block; }
+  #stage[data-layout^="pip"] #movie { display: block; width: 100%; } /* flex: 1 no longer applies here */
   #stage[data-layout^="pip"] #reaction { position: absolute; height: auto; aspect-ratio: 16 / 9; background: #000; border-radius: 8px; overflow: hidden; box-shadow: 0 0 0 1px #fff2, 0 6px 24px #000c; }
   #stage[data-layout="pip-br"] #reaction { right: 2%; bottom: 3%; }
   #stage[data-layout="pip-bl"] #reaction { left: 2%; bottom: 3%; }
@@ -402,6 +403,7 @@ const I18N = { de: {
   'Session link copied to clipboard.': 'Session-Link in die Zwischenablage kopiert.', 'Copy session link:': 'Session-Link kopieren:',
   'Load movie and reaction first.': 'Erst Film und Reaction laden.', 'Session link is invalid.': 'Session-Link ist ungültig.',
   'Jellyfin address {0} taken from the session link.': 'Jellyfin-Adresse {0} aus dem Session-Link übernommen.',
+  'The session link wants to use the Jellyfin server {0}. Your password is sent to this address when you sign in. Use this address?': 'Der Session-Link möchte den Jellyfin-Server {0} verwenden. Dein Passwort wird beim Anmelden an diese Adresse gesendet. Diese Adresse verwenden?',
   'The session link belongs to the Jellyfin server {0}, but you are signed in to {1}.': 'Der Session-Link gehört zum Jellyfin-Server {0}, angemeldet bist du bei {1}.',
   'Jellyfin returned no playable source{0}.': 'Jellyfin liefert keine abspielbare Quelle{0}.',
   'Format not supported by the browser and Jellyfin offers no transcoding.': 'Format wird vom Browser nicht unterstützt und Jellyfin bietet keine Umwandlung an.',
@@ -458,7 +460,7 @@ const ytApi = () => ytApi.p ??= new Promise((res, rej) => {
   document.head.append(Object.assign(document.createElement('script'), {
     src: 'https://www.youtube.com/iframe_api', onerror: () => rej(new Error(t('YouTube API not reachable'))),
   }));
-});
+}).catch(e => { ytApi.p = null; throw e; }); // do not remember a failure: the next attempt loads the script again
 const Y = {
   player: null, state: -1, start: 0,
   clock: null, // video time − performance.now() in s; getCurrentTime() alone only updates ~4×/s
@@ -481,8 +483,8 @@ const Y = {
   onState(s) { // -1 unstarted, 0 ended, 1 playing, 2 paused, 3 buffering, 5 cued
     this.state = s;
     this.clock = s === 1 ? this.player.getCurrentTime() - performance.now() / 1000 : null;
-    const title = this.player.getVideoData?.().title;
-    if (title && cur.reaction?.yt) { cur.reaction.name = title; updateMeta(); showCurrent(); }
+    const d = this.player.getVideoData?.(); // events of the previous video still arrive after a switch
+    if (d?.title && d.video_id === cur.reaction?.yt) { cur.reaction.name = d.title; updateMeta(); showCurrent(); }
     if (M === this) { correcting = true; sync(); }
   },
   get started() { return this.player && this.state !== -1 && this.state !== 5; },
@@ -491,7 +493,11 @@ const Y = {
     if (!this.started) return this.start;
     return this.clock == null ? this.player.getCurrentTime() : this.clock + performance.now() / 1000;
   },
-  set currentTime(t) { this.start = t; this.clock = null; this.player?.seekTo(t, true); },
+  set currentTime(t) {
+    this.start = t; this.clock = null;
+    this.player?.seekTo(t, true);
+    if (this.state !== 1 && this.state !== 3) this.player?.pauseVideo(); // seekTo starts playback from the ended/cued state
+  },
   get duration() { return this.player?.getDuration?.() || NaN; },
   get readyState() { return this.player && this.state !== -1 ? 1 : 0; },
   seeking: false,
@@ -538,17 +544,18 @@ function sync(force) {
     if (abs < 0.005) correcting = false;
     setRate(correcting ? 1 - Math.sign(drift) * (abs > 0.1 ? 0.08 : 0.03) : 1);
   }
-  if (M.paused) S.pause(); else if (S.paused) S.play().catch(e => msg(e.message));
+  if (M.paused) S.pause(); else if (S.paused) S.play().catch(playErr);
 }
 let correcting = true, lead = 0, seekAt = 0;
+const playErr = e => e.name === 'AbortError' || msg(e.message); // AbortError: our own pause()/load interrupted a pending play()
 const setRate = r => { if (S.playbackRate !== r) S.playbackRate = r; };
 S.addEventListener('seeked', () => { if (seekAt) lead = Math.min(3, (performance.now() - seekAt) / 1000); seekAt = 0; });
 ['play', 'pause', 'seeked'].forEach(e => V.addEventListener(e, () => { if (M === V) { correcting = true; sync(e === 'seeked'); } }));
 
-const fmt = s => new Date(s * 1000).toISOString().slice(11, 19);
+const fmt = s => new Date((Number.isFinite(s) ? s : 0) * 1000).toISOString().slice(11, 19);
 setInterval(() => {
   sync();
-  const dur = M.duration || 0;
+  const dur = Number.isFinite(M.duration) ? M.duration : 0; // Infinity: live stream or file without a duration
   $('seek').max = dur;
   if (!$('seek').matches(':active')) $('seek').value = M.currentTime;
   $('time').textContent = `${fmt(M.currentTime)} / ${fmt(dur)}`;
@@ -569,7 +576,7 @@ document.querySelectorAll('[data-d]').forEach(b => b.onclick = () => nudge(+b.da
 const restart = () => { setOffset(M.currentTime); toast(`${t('Movie starts now')} · Offset ${offset.toFixed(3)} s`); }; // movie 0:00 = current reaction time
 $('restart').onclick = restart;
 
-const toggle = () => M.paused ? M.play().catch(e => msg(e.message)) : M.pause();
+const toggle = () => M.paused ? M.play().catch(playErr) : M.pause();
 const stop = () => { M.pause(); M.currentTime = 0; };
 $('toggle').onclick = toggle;
 $('stop').onclick = stop;
@@ -643,12 +650,16 @@ for (const v of [V, S]) v.onerror = () => v.src && msg(`${v === S ? t('Movie') :
 // Load a source into a <video>: local files directly; for Jellyfin the server decides (PlaybackInfo)
 // whether the browser can play the file directly or whether it is transcoded to an HLS stream.
 const playMode = {};
+// Exact version + integrity: the script runs on the origin that holds the Jellyfin token. New version = new hash (sha384 of the file).
 const hlsLib = () => hlsLib.p ??= new Promise((res, rej) => document.head.append(Object.assign(document.createElement('script'), {
-  src: 'https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js', onload: res, onerror: () => rej(new Error(t('hls.js could not be loaded'))),
-})));
+  src: 'https://cdn.jsdelivr.net/npm/hls.js@1.7.3/dist/hls.min.js', crossOrigin: 'anonymous',
+  integrity: 'sha384-cciJ0zi8d1uMKC2zJd7jvPY4HQt7W4ByUI/FlMkltvBi31aW61rcpVBhpmW8/NwX',
+  onload: res, onerror: () => rej(new Error(t('hls.js could not be loaded'))),
+}))).catch(e => { hlsLib.p = null; throw e; });
 async function setSource(v, item, fileUrl) {
   const slot = v === S ? 'movie' : 'reaction';
   v._hls?.destroy(); v._hls = null; playMode[slot] = '';
+  v.removeAttribute('src'); v.load(); // detach the old video right away, not only once the new one has been resolved
   try {
     const { url, hls } = item.id ? await jfSource(item.id) : { url: fileUrl };
     if (cur[slot] !== item) return; // something else has been selected in the meantime
@@ -656,15 +667,20 @@ async function setSource(v, item, fileUrl) {
     showCurrent();
     if (!hls || !window.MediaSource) return void (v.src = url); // without MediaSource (Safari) the browser plays HLS natively
     await hlsLib();
+    if (cur[slot] !== item) return;
     v._hls = new Hls();
     v._hls.on(Hls.Events.ERROR, (_, d) => d.fatal && msg(t('{0}: stream error ({1})', item.name, d.details)));
     v._hls.loadSource(url); v._hls.attachMedia(v);
   } catch (e) { msg(`${item.name}: ${e.message}`); }
 }
 
-function loadMovie(src, item) { cur.movie = item; msg(''); updateMeta(); showCurrent('movie'); setSource(S, item, src); }
+let movieWanted = false; // the session's movie still has to be chosen by hand: do not autosave over it with the current one
+function loadMovie(src, item) { movieWanted = false; cur.movie = item; msg(''); updateMeta(); showCurrent('movie'); setSource(S, item, src); }
 function loadReaction(item, src) { // a saved session for this reaction is applied automatically
   const s = sessions()[item.key];
+  movieWanted = false;
+  // Property instead of a listener: a restore left over from a failed or superseded load must not hit this reaction
+  V.onloadedmetadata = s && !item.yt ? () => { V.onloadedmetadata = null; V.currentTime = s.pos; } : null;
   M.pause();
   M = item.yt ? Y : V;
   V.hidden = !!item.yt; $('ytbox').hidden = !item.yt;
@@ -674,13 +690,13 @@ function loadReaction(item, src) { // a saved session for this reaction is appli
     Y.load(item.yt, s?.pos || 0).catch(e => msg(e.message));
   } else {
     setSource(V, item, src);
-    if (s) V.addEventListener('loadedmetadata', () => V.currentTime = s.pos, { once: true });
   }
   if (!s) return;
   setOffset(s.offset);
   if (cur.movie?.key === s.movie.key) return;
-  if (s.movie.id && loggedIn()) loadMovie(null, s.movie);
-  else msg(t(s.movie.id ? 'Please sign in to Jellyfin and choose the movie “{0}”.' : 'Please choose the movie file “{0}”.', s.movie.name));
+  if (s.movie.id && loggedIn()) return loadMovie(null, s.movie);
+  movieWanted = true;
+  msg(t(s.movie.id ? 'Please sign in to Jellyfin and choose the movie “{0}”.' : 'Please choose the movie file “{0}”.', s.movie.name));
 }
 const fileItem = f => ({ key: `file:${f.name}:${f.size}`, name: f.name });
 
@@ -741,7 +757,16 @@ addEventListener('drop', e => {
 });
 
 // ponytail: sessions live only in this browser's localStorage; export/Jellyfin sync once multiple devices are needed
-function sessions() { try { return JSON.parse(localStorage.rwSessions || '{}'); } catch { return {}; } }
+function sessions() { // stored data is not trusted: broken entries are dropped, numbers made finite (JSON turns Infinity into null)
+  try {
+    const all = JSON.parse(localStorage.rwSessions || '{}');
+    for (const [k, s] of Object.entries(all)) {
+      if (!s?.reaction?.key || !s.movie?.key) delete all[k];
+      else { s.offset = +s.offset || 0; s.pos = +s.pos || 0; }
+    }
+    return all;
+  } catch { return {}; }
+}
 function storeSessions(all) { try { localStorage.rwSessions = JSON.stringify(all); } catch {} }
 
 let pending; // session waiting for the Jellyfin sign-in
@@ -757,10 +782,11 @@ function openSession(s) {
 }
 const current = () => ({ movie: cur.movie, reaction: cur.reaction, offset, pos: M.currentTime, at: Date.now() });
 setInterval(() => { // autosave: offset + position per reaction
-  if (!cur.movie || !cur.reaction || M.readyState < 1 || M.seeking) return;
-  const all = sessions();
+  if (!cur.movie || !cur.reaction || movieWanted || M.readyState < 1 || M.seeking) return;
+  const all = sessions(), isNew = !all[cur.reaction.key];
   all[cur.reaction.key] = current();
   storeSessions(all);
+  if (isNew) renderSessions(); // ponytail: positions in the list only refresh when a tab is opened
 }, 2000);
 
 // --- Session link: sources, offset and position in the URL hash; for Jellyfin sources also the server address, never the access token ---
@@ -788,17 +814,20 @@ function openLink() {
   if (!location.hash.includes('r=')) return;
   history.replaceState(null, '', location.href.split('#')[0]); // otherwise a reload resets the position to the link's state
   if (!movie || !reaction) return msg(t('Session link is invalid.'));
-  const s = { movie, reaction, offset: +p.get('o') || 0, pos: Math.max(0, +p.get('t') || 0), at: Date.now() };
+  const num = v => Number.isFinite(+v) ? +v : 0;
+  const s = { movie, reaction, offset: num(p.get('o')), pos: Math.max(0, num(p.get('t'))), at: Date.now() };
   const all = sessions(); all[reaction.key] = s; storeSessions(all);
   renderSessions();
-  // Server address from the link (untrusted input): http(s) only, only adopted when not signed in,
-  // and always shown – the password is sent to this address afterwards.
+  // Server address from the link (untrusted input): http(s) only, only for Jellyfin sources, only when not signed in,
+  // and only after the user has confirmed it – the password is sent to this address afterwards.
   let srv = ''; try { const u = new URL(p.get('s')); if (/^https?:$/.test(u.protocol)) srv = u.href.replace(/\/*$/, '/'); } catch {}
-  if (srv && !configServer && srv !== base()) {
+  if (srv && !configServer && srv !== base() && (movie.id || reaction.id)) {
     if (loggedIn()) return msg(t('The session link belongs to the Jellyfin server {0}, but you are signed in to {1}.', srv, base()));
-    $('server').value = srv; $('server').onchange();
-    openSession(s);
-    return msg(t('Jellyfin address {0} taken from the session link.', srv) + ' ' + $('msgText').textContent);
+    if (confirm(t('The session link wants to use the Jellyfin server {0}. Your password is sent to this address when you sign in. Use this address?', srv))) {
+      $('server').value = srv; $('server').onchange();
+      openSession(s);
+      return msg(t('Jellyfin address {0} taken from the session link.', srv) + ' ' + $('msgText').textContent);
+    }
   }
   openSession(s);
 }
@@ -809,7 +838,7 @@ function renderSessions() {
   $('sessions').replaceChildren(...Object.entries(all).sort((a, b) => b[1].at - a[1].at).map(([k, s]) => row(
     btn(t('Resume'), () => openSession(s), 'play'),
     btn('', () => copyLink(s), 'link'),
-    btn('✕', () => { delete all[k]; storeSessions(all); renderSessions(); }),
+    btn('✕', () => { const now = sessions(); delete now[k]; storeSessions(now); renderSessions(); }), // re-read: `all` is from render time
     `${s.reaction.name} ↔ ${s.movie.name} · Offset ${s.offset.toFixed(3)} s · ${t('at')} ${fmt(s.pos)}`,
   )));
 }
