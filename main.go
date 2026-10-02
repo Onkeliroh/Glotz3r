@@ -21,13 +21,13 @@ import (
 	"strconv"
 )
 
-//go:embed index.html
+//go:embed web/index.html
 var index []byte
 
-//go:embed sw.js
+//go:embed web/sw.js
 var sw []byte
 
-//go:embed manifest.webmanifest
+//go:embed web/manifest.webmanifest
 var manifest []byte
 
 // App icon: two offset picture areas (movie white, reaction orange) on a dark background.

@@ -4,9 +4,9 @@
 
 Watch reaction videos in sync with your own movie or series. The reaction sets the pace, and the movie follows it with an adjustable, millisecond-accurate offset.
 
-![Glotz3r with a movie and a reaction side by side, the sessions panel on the left and the offset, volume and view controls below](screenshot.png)
+![Glotz3r with a movie and a reaction side by side, the sessions panel on the left and the offset, volume and view controls below](docs/screenshot.png)
 
-The whole application is a single web page ([index.html](index.html)). A small executable serves it locally and opens it in the browser.
+The whole application is a single web page ([web/index.html](web/index.html)). A small executable serves it locally and opens it in the browser.
 
 ## Build and run
 
@@ -20,7 +20,7 @@ go build -ldflags "-s -w" -o glotz3r.exe .
 
 Then start `glotz3r.exe` with a double click. The page opens in the browser at `http://127.0.0.1:8097`. Closing the console window stops Glotz3r.
 
-`index.html` is embedded into the executable at build time, so rebuild after changing the page. If the old version is still running during the build, it is left behind as `glotz3r.exe~` and can be deleted once it is closed.
+`web/index.html` is embedded into the executable at build time, so rebuild after changing the page. If the old version is still running during the build, it is left behind as `glotz3r.exe~` and can be deleted once it is closed.
 
 For other systems (Git Bash syntax; in PowerShell set `$env:CGO_ENABLED = "0"`, `$env:GOOS = "linux"` and `$env:GOARCH = "amd64"` first):
 
@@ -45,6 +45,13 @@ Start options:
 ```bash
 go run .
 ```
+
+### Without the Go server
+
+The Go executable is not a requirement. It only exists because I was too lazy to deploy the page on another server. Glotz3r is a static page, so there are two other ways to run it:
+
+- **Any web server** (nginx or similar): serve the contents of `web/`. Two files normally come from the Go server and are missing then: `config.json` (optional, `{"jellyfin": "https://…"}` presets the Jellyfin address) and `icon.png` (the app icon). The page itself works without them; installing it as an app needs both to be present.
+- **No server at all:** open [web/index.html](web/index.html) directly in the browser. This works without installing it as an app (PWA), and YouTube reactions are not available because YouTube embedding needs http/https.
 
 ## Usage
 
@@ -86,7 +93,7 @@ Offset and position are saved automatically per reaction in the browser and appl
 
 ### Language
 
-English and German, switchable on the settings tab (gear icon) of the sources panel; the default is the browser language. Another language only needs an entry in `LANGS` and a dictionary in `I18N` (both in `index.html`; the key is the English text). Missing translations are reported in the browser console.
+English and German, switchable on the settings tab (gear icon) of the sources panel; the default is the browser language. Another language only needs an entry in `LANGS` and a dictionary in `I18N` (both in `web/index.html`; the key is the English text). Missing translations are reported in the browser console.
 
 ## Install as an app (no need to start the server)
 
@@ -95,7 +102,7 @@ Glotz3r can be installed as an app (PWA). It then starts like a program of its o
 1. Start the `.exe` once and open the page in Chrome or Edge.
 2. In the sources panel under settings (gear icon) press **Install as app**, or use the install icon in the address bar.
 
-The app runs at the same address (`http://127.0.0.1:8097`), so login and sessions are kept. The browser keeps the page cached. After changing `index.html`, start the `.exe` once and open the app; it then fetches the new version. Firefox cannot install apps, but after the first visit it also opens the page at that address without the server.
+The app runs at the same address (`http://127.0.0.1:8097`), so login and sessions are kept. The browser keeps the page cached. After changing `web/index.html`, start the `.exe` once and open the app; it then fetches the new version. Firefox cannot install apps, but after the first visit it also opens the page at that address without the server.
 
 ## Good to know
 
@@ -107,8 +114,8 @@ The app runs at the same address (`http://127.0.0.1:8097`), so login and session
 
 | File | Purpose |
 |---|---|
-| `index.html` | The entire application (HTML, CSS, JavaScript) |
-| `sw.js`, `manifest.webmanifest` | Make the page installable as an app; `sw.js` keeps it in the browser cache |
-| `screenshot.png` | Screenshot for this README |
-| `main.go`, `go.mod` | Small local server that serves the embedded `index.html` |
+| `web/index.html` | The entire application (HTML, CSS, JavaScript) |
+| `web/sw.js`, `web/manifest.webmanifest` | Make the page installable as an app; `sw.js` keeps it in the browser cache |
+| `docs/screenshot.png` | Screenshot for this README |
+| `main.go`, `go.mod` | Small local server that serves the embedded files from `web/` |
 | `.claude/launch.json` | Preview configuration for Claude Code |
