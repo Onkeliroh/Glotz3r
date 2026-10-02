@@ -1,0 +1,1003 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Glotz3r – Spectatorem spectantem specta</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.png?s=64">
+<meta name="theme-color" content="#15171d">
+<style>
+  :root {
+    color-scheme: dark; font: 14px/1.4 system-ui, sans-serif;
+    --bg: #0e0f13; --panel: #15171d; --card: #1b1e26; --ctl: #262a35; --line: #2c303c;
+    --text: #e8eaf0; --dim: #8b91a1; --accent: #ffb224;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  /* Header on top, sources panel on the left (collapsible), stage above the control dock on the right */
+  body { margin: 0; background: var(--bg); color: var(--text); display: grid;
+    grid-template: "head head" auto "side stage" minmax(0, 1fr) "side dock" auto / auto minmax(0, 1fr); }
+  [hidden] { display: none !important; }
+
+  /* --- Controls --- */
+  button, input, select { font: inherit; color: inherit; }
+  button, select, input:not([type=range], [type=radio], [type=file]) { padding: 5px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--ctl); }
+  input:not([type=range], [type=radio], [type=file]) { background: var(--bg); min-width: 0; }
+  button, select, label { cursor: pointer; }
+  button { white-space: nowrap; }
+  button:hover, select:hover { background: #313644; }
+  button:active { filter: brightness(1.5); transform: translateY(1px); }
+  button:disabled, fieldset:disabled button { opacity: .45; cursor: default; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #1a1200; font-weight: 600; }
+  button.primary:hover { background: #ffc34f; }
+  button.icon { display: inline-grid; place-content: center; width: 34px; height: 34px; padding: 0; }
+  button.flat { background: none; border-color: transparent; }
+  button.flat:hover { background: var(--ctl); }
+  input[type=range] { accent-color: var(--accent); min-width: 0; }
+  input[type=file] { max-width: 100%; }
+  ::file-selector-button { font: inherit; color: inherit; padding: 5px 10px; margin-right: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--ctl); cursor: pointer; }
+  /* Icons: CSS masks, so they survive text changes (language, JS) and take the text colour. Usage: data-i="name" */
+  [data-i]::before { content: ''; display: inline-block; width: 1.15em; height: 1.15em; margin-right: 6px; vertical-align: -.22em; background: currentColor; -webkit-mask: var(--i) center / contain no-repeat; mask: var(--i) center / contain no-repeat; }
+  [data-i=clap] { --i: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11h18v9H3zM3 11l-.8-3.8 15.5-4 1 3.8zM7 6.2l2.5 3.6M12 4.9l2.5 3.6"/></svg>'); }
+  [data-i=link] { --i: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>'); }
+  [data-i=keys] { --i: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg>'); }
+  [data-i=folder] { --i: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>'); }
+  [data-i=sliders] { --i: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h8M16 18h4"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="14" cy="18" r="2"/></svg>'); }
+  [data-i=eye] { --i: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>'); }
+  [data-i=search] { --i: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>'); }
+  [data-i=play] { --i: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16l13-8z"/></svg>'); }
+  [data-i=gear] { --i: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="7"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.2 2.2M16.9 16.9l2.2 2.2M4.9 19.1l2.2-2.2M16.9 7.1l2.2-2.2"/></svg>'); }
+  [data-i=user] { --i: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>'); }
+  [data-i=face] { --i: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9.5h.01M15 9.5h.01"/></svg>'); }
+  [data-i=clock] { --i: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>'); }
+  [data-i=bolt] { --i: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>'); }
+  [data-i=down] { --i: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12M6 11l6 6 6-6M5 21h14"/></svg>'); }
+  [data-i=out] { --i: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4H5v16h4M15 8l4 4-4 4M19 12H9"/></svg>'); }
+  [data-i]:empty::before { margin: 0; }
+  kbd { padding: 1px 7px; border: 1px solid #555; border-radius: 4px; background: #2a2d36; font: inherit; }
+  .bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0; }
+  .grow { flex: 1; }
+  .hint { color: var(--dim); }
+  .hint.bar { gap: 2px 18px; font-size: 12px; }
+  .hint b { color: var(--text); }
+  label { display: inline-flex; align-items: center; gap: 6px; }
+
+  /* --- Header --- */
+  header { grid-area: head; display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  .brand { font-size: 16px; margin-right: 8px; white-space: nowrap; }
+  .brand span { color: var(--accent); }
+  .chip { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; max-width: 30vw; padding: 2px 10px; line-height: 1.25; text-align: left; }
+  .chip small { color: var(--dim); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+  .chip b { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+  body.panel #panelBtn { border-color: var(--accent); color: var(--accent); }
+  #lang { display: flex; gap: 6px; }
+  #lang button { display: inline-flex; align-items: center; gap: 8px; }
+  #lang button.on { border-color: var(--accent); color: var(--accent); }
+  #lang svg { border-radius: 2px; }
+  .pane h3 { margin: 14px 0 6px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--dim); }
+
+  /* --- Sources panel --- */
+  #setup { grid-area: side; display: none; flex-direction: column; width: 400px; min-height: 0; background: var(--panel); border-right: 1px solid var(--line); }
+  body.panel #setup { display: flex; }
+  .tabs { display: flex; border-bottom: 1px solid var(--line); }
+  .tabs button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: 9px 8px; color: var(--dim); }
+  .tabs button:hover { color: var(--text); background: none; }
+  .tabs button.on { color: var(--text); border-bottom-color: var(--accent); }
+  .tabs .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #555; }
+  body.jf-in .tabs .dot { background: #4cc38a; }
+  .pane { flex: 1; min-height: 0; overflow: auto; padding: 6px 14px 14px; }
+  .now { display: block; padding: 8px 10px; border-radius: 8px; background: var(--card); border: 1px solid var(--line); }
+  .now small { display: block; color: var(--dim); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+  .srcs { gap: 0; }
+  .srcs label { padding: 4px 12px; border: 1px solid var(--line); margin-left: -1px; background: var(--ctl); }
+  .srcs label:first-child { border-radius: 8px 0 0 8px; margin-left: 0; }
+  .srcs label:last-child { border-radius: 0 8px 8px 0; }
+  .srcs label:has(:checked) { background: var(--accent); border-color: var(--accent); color: #1a1200; font-weight: 600; }
+  .srcs input { position: absolute; opacity: 0; pointer-events: none; }
+  fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
+  .jf .q, .yt { flex: 1; }
+  #jfLogin { display: grid; gap: 8px; margin: 10px 0; }
+  .results span, #sessions span, .tree span { display: flex; gap: 6px; align-items: center; margin: 3px 0; }
+  .results button, .tree button { padding: 1px 8px; flex: none; }
+  .results:not(:empty) { padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid var(--line); }
+  /* Jellyfin tree: nested <details>, content is loaded when a node is opened */
+  .tree details > :not(summary) { margin-left: 18px; }
+  .tree summary { cursor: pointer; padding: 4px 6px; border-radius: 6px; }
+  .tree summary:hover { background: var(--ctl); }
+  #sessions:empty::before { content: 'Noch keine.'; color: var(--dim); }
+  #sessions span { flex-wrap: wrap; padding: 8px 0; margin: 0; border-bottom: 1px solid var(--line); }
+
+  /* --- Stage --- */
+  #stage { grid-area: stage; display: flex; gap: 4px; margin: 12px 12px 0; min-height: 0; background: #000; border-radius: 10px; overflow: hidden; position: relative; }
+  #stage:fullscreen { height: 100%; margin: 0; border-radius: 0; }
+  #movie { flex: 1; min-width: 0; height: 100%; }
+  #reaction { width: 30%; height: 100%; }
+  #rvideo, #ytbox, #ytbox iframe { display: block; width: 100%; height: 100%; border: 0; }
+  /* Layout templates: the reaction width always comes from the "Size" slider */
+  #stage[data-layout="side-left"] #reaction { order: -1; }
+  #stage[data-layout^="pip"] { display: block; }
+  #stage[data-layout^="pip"] #reaction { position: absolute; height: auto; aspect-ratio: 16 / 9; background: #000; border-radius: 8px; overflow: hidden; box-shadow: 0 0 0 1px #fff2, 0 6px 24px #000c; }
+  #stage[data-layout="pip-br"] #reaction { right: 2%; bottom: 3%; }
+  #stage[data-layout="pip-bl"] #reaction { left: 2%; bottom: 3%; }
+  #stage[data-layout="pip-tr"] #reaction { right: 2%; top: 3%; }
+  #stage[data-layout="pip-tl"] #reaction { left: 2%; top: 3%; }
+  /* Reaction picture hidden: 1 px instead of display:none, so audio (YouTube too) reliably keeps playing */
+  #stage.rhide #reaction { position: absolute !important; width: 1px !important; height: 1px !important; opacity: 0; pointer-events: none; }
+  #rhidden { position: absolute; top: 8px; right: 8px; z-index: 1; padding: 4px; background: none; border: 0; color: #fff; opacity: .3; line-height: 0; }
+  #rhidden:hover { opacity: .9; background: none; }
+  #empty { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; color: var(--dim); background: radial-gradient(circle at 50% 40%, #1b1e26, #000 70%); }
+  #empty b { font-size: 1.4em; color: var(--text); }
+  #toast { position: absolute; top: 8%; left: 50%; transform: translateX(-50%); z-index: 3; padding: 8px 16px; background: #000c; border: 1px solid #555; border-radius: 10px; font-size: 1.2em; pointer-events: none; text-align: center; backdrop-filter: blur(6px); }
+  #keys { position: absolute; inset: 0; margin: auto; width: fit-content; height: fit-content; padding: 16px 24px; background: #000c; border: 1px solid #555; border-radius: 10px; z-index: 2; backdrop-filter: blur(6px); }
+  #keys td { padding: 4px 10px; }
+  #drop { position: absolute; inset: 0; display: flex; z-index: 4; }
+  #drop div { flex: 1; display: grid; place-content: center; text-align: center; font-size: 1.5em; background: #000c; border: 3px dashed #777; }
+  #drop div.over { background: #3a2a00cc; border-color: var(--accent); }
+  #drop small { display: block; font-size: .6em; color: var(--dim); }
+
+  /* --- Control dock --- */
+  #dock { grid-area: dock; padding: 4px 12px 12px; }
+  /* Message: sits at the bottom of the stage (visible in fullscreen too), dismissible, disappears on its own */
+  #msg { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 3; display: flex; align-items: flex-start; gap: 8px; width: max-content; max-width: min(90%, 640px); padding: 8px 8px 8px 14px; background: #1b1e26f2; border: 1px solid #555; border-left: 3px solid #ff8a8a; border-radius: 10px; box-shadow: 0 6px 24px #000a; }
+  #msgText { padding: 3px 0; }
+  #msgClose { padding: 2px 8px; }
+  #seek { flex: 1; min-width: 120px; }
+  #toggle .pause, body.playing #toggle .play { display: none; }
+  body.playing #toggle .pause { display: block; }
+  #drift, #time { font-variant-numeric: tabular-nums; color: var(--dim); } /* equal-width digits so nothing wobbles */
+  #drift { display: inline-block; min-width: 8.5em; }
+  #panels { display: flex; flex-wrap: wrap; gap: 8px; }
+  body.compact #panels { display: none; }
+  body:not(.compact) #more { border-color: var(--accent); color: var(--accent); }
+  .card { flex: 1 1 230px; padding: 8px 12px 10px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
+  .card.wide { flex: 2 1 460px; }
+  .card h3 { margin: 0 0 6px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--dim); }
+  .card .bar { margin: 6px 0 0; }
+  .card label { display: grid; grid-template-columns: 5.5em minmax(0, 1fr); margin-top: 4px; }
+  .seg { display: inline-flex; }
+  .seg button { border-radius: 0; margin-left: -1px; padding: 5px 8px; }
+  .seg button:first-child { border-radius: 8px 0 0 8px; margin-left: 0; }
+  .seg button:last-child { border-radius: 0 8px 8px 0; }
+  #offset { width: 7.5em; text-align: center; font-variant-numeric: tabular-nums; font-size: 1.1em; }
+
+  @media (max-width: 900px) { /* narrow: the panel overlays the stage instead of pushing it aside */
+    #setup { position: fixed; inset: 0 auto 0 0; z-index: 5; width: min(400px, 100vw); box-shadow: 8px 0 32px #000a; }
+    .chip { max-width: 22vw; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <b class="brand" title="Spectatorem spectantem specta">Glotz<span>3</span>r</b>
+  <button id="panelBtn" data-i="folder" title="Show / hide sources panel" data-t>Sources</button>
+  <button class="chip flat" data-tab="movie"><small data-t>Movie</small><b data-now="movie" data-t>not selected</b></button>
+  <button class="chip flat" data-tab="reaction"><small>Reaction</small><b data-now="reaction" data-t>not selected</b></button>
+  <span class="grow"></span>
+  <button id="link" data-i="link" class="flat" title="Copy link with sources, offset and position" data-t>Session link</button>
+  <button id="help" data-i="keys" class="flat" title="Keyboard shortcuts (H)" data-t>Keys</button>
+</header>
+
+<aside id="setup">
+  <nav class="tabs">
+    <button data-tab="movie" data-i="clap" data-t>Movie</button>
+    <button data-tab="reaction" data-i="face">Reaction</button>
+    <button data-tab="sessions" data-i="clock">Sessions</button>
+    <button data-tab="jf" data-i="gear" title="Settings: Jellyfin account and language"><i class="dot"></i></button>
+    <span class="grow"></span>
+    <button id="panelClose" title="Close panel">✕</button>
+  </nav>
+  <section class="pane slot" data-pane="movie" data-slot="movie">
+    <div class="bar"><span class="now grow"><small data-t>Current</small><span data-now="movie" data-t>nothing selected yet</span></span></div>
+    <div class="bar srcs">
+      <label><input type="radio" name="srcMovie" value="jf" checked> Jellyfin</label>
+      <label><input type="radio" name="srcMovie" value="file"> <span data-t>Local file</span></label>
+    </div>
+    <fieldset class="bar jf" data-src="jf" disabled>
+      <input class="q">
+      <button class="search" data-i="search" data-t>Search</button>
+    </fieldset>
+    <div class="results" data-src="jf"></div>
+    <div class="tree" data-src="jf"></div>
+    <div class="bar" data-src="file">
+      <input type="file" accept="video/*">
+      <span class="hint" data-t>or drag a file onto the video area</span>
+    </div>
+  </section>
+  <section class="pane slot" data-pane="reaction" data-slot="reaction">
+    <div class="bar"><span class="now grow"><small data-t>Current</small><span data-now="reaction" data-t>nothing selected yet</span></span></div>
+    <div class="bar srcs">
+      <label><input type="radio" name="srcReaction" value="jf" checked> Jellyfin</label>
+      <label><input type="radio" name="srcReaction" value="yt"> YouTube</label>
+      <label><input type="radio" name="srcReaction" value="file"> <span data-t>Local file</span></label>
+    </div>
+    <fieldset class="bar jf" data-src="jf" disabled>
+      <input class="q">
+      <button class="search" data-i="search" data-t>Search</button>
+    </fieldset>
+    <div class="results" data-src="jf"></div>
+    <div class="tree" data-src="jf"></div>
+    <div class="bar" data-src="yt">
+      <input class="yt" placeholder="YouTube link">
+      <button class="ytLoad" data-i="down" data-t>Load</button>
+      <span class="hint" data-t>or drag a link onto the video area</span>
+    </div>
+    <div class="bar" data-src="file">
+      <input type="file" accept="video/*">
+      <span class="hint" data-t>or drag a file onto the video area</span>
+    </div>
+  </section>
+  <section class="pane" data-pane="sessions">
+    <p class="hint" data-t>Offset and position are saved automatically per reaction in this browser.</p>
+    <div id="sessions"></div>
+  </section>
+  <section class="pane" data-pane="jf">
+    <div id="installBox" hidden>
+      <h3>App</h3>
+      <button id="install" data-i="down" data-t>Install as app</button>
+      <p class="hint" data-t>Afterwards Glotz3r starts like a program of its own – even without the server running.</p>
+    </div>
+    <h3 data-t>Language</h3>
+    <div id="lang"></div>
+    <h3 data-t>Jellyfin account</h3>
+    <form id="jfLogin">
+      <input id="server" placeholder="http://jellyfin:8096">
+      <input id="user" placeholder="Username" autocomplete="username" required>
+      <input id="pw" type="password" placeholder="Password" autocomplete="current-password">
+      <button class="primary" data-i="user" data-t>Sign in</button>
+      <button type="button" id="qc" data-i="bolt">Quick Connect</button>
+      <b id="qcCode"></b>
+    </form>
+    <div class="bar" id="jfUser" hidden>
+      <span class="grow"><span data-t>Signed in as</span> <b id="who"></b></span>
+      <button id="logout" data-i="out" data-t>Sign out</button>
+    </div>
+  </section>
+</aside>
+
+<div id="stage" data-layout="side">
+  <video id="movie"></video>
+  <div id="reaction">
+    <video id="rvideo"></video>
+    <div id="ytbox" hidden><div id="yt"></div></div>
+  </div>
+  <div id="empty"><div>
+    <b data-t>Nothing loaded yet</b>
+    <p data-t>Choose movie and reaction under “Sources”<br>or drag video files here.</p>
+    <button class="primary" data-tab="movie" data-i="folder" data-t>Choose sources</button>
+  </div></div>
+  <button id="rhidden" hidden title="Reaction picture hidden, audio keeps playing – click or press V to show it"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4" height="6" rx="1"/><rect x="17" y="14" width="4" height="6" rx="1"/></svg></button>
+  <div id="toast" hidden></div>
+  <div id="msg" hidden><span id="msgText"></span><button id="msgClose" class="flat" title="Dismiss message">✕</button></div>
+  <div id="drop" hidden>
+    <div data-as="movie" data-t>Drop movie here<small>video file</small></div>
+    <div data-as="reaction" data-t>Drop reaction here<small>video file or YouTube link</small></div>
+  </div>
+  <table id="keys" hidden>
+    <tr><td><kbd data-t>Space</kbd></td><td>Play / Pause</td></tr>
+    <tr><td><kbd>⏯</kbd> <kbd>⏹</kbd></td><td data-t>Media keys: play / pause, stop</td></tr>
+    <tr><td><kbd>,</kbd> <kbd>.</kbd></td><td>Offset −/+ 10 ms</td></tr>
+    <tr><td><kbd>-</kbd> <kbd>+</kbd></td><td>Offset −/+ 100 ms</td></tr>
+    <tr><td><kbd>R</kbd></td><td data-t>Movie starts now (reset offset)</td></tr>
+    <tr><td><kbd>L</kbd></td><td data-t>Next layout</td></tr>
+    <tr><td><kbd>V</kbd></td><td data-t>Hide / show reaction picture (audio keeps playing)</td></tr>
+    <tr><td><kbd>F</kbd></td><td data-t>Fullscreen on / off</td></tr>
+    <tr><td><kbd>H</kbd> <kbd>?</kbd></td><td data-t>Show / hide this overview</td></tr>
+  </table>
+</div>
+
+<footer id="dock">
+  <div class="bar">
+    <button id="toggle" class="icon primary" title="Play / pause (Space)">
+      <svg class="play" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+      <svg class="pause" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+    </button>
+    <button id="stop" class="icon" title="Stop"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M6 6h12v12H6z"/></svg></button>
+    <input id="seek" type="range" min="0" max="0" step="0.1" value="0">
+    <span id="time">0:00:00</span>
+    <button id="more" data-i="sliders" title="Show / hide controls for offset, volume and view" data-t>Controls</button>
+    <button id="fs" class="icon" title="Fullscreen (F)"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+  </div>
+  <div id="panels">
+    <section class="card wide">
+      <h3 title="Offset = reaction time at which the movie is at 0:00" data-t>Offset (seconds)</h3>
+      <div class="bar">
+        <span class="seg"><button data-d="-1">−1 s</button><button data-d="-0.1">−100</button><button data-d="-0.01">−10</button><button data-d="-0.001">−1 ms</button></span>
+        <input id="offset" type="number" step="0.001" value="0.000">
+        <span class="seg"><button data-d="0.001">+1 ms</button><button data-d="0.01">+10</button><button data-d="0.1">+100</button><button data-d="1">+1 s</button></span>
+        <span id="drift"></span>
+        <span class="grow"></span>
+        <button id="restart" data-i="clap" class="primary" title="Key R" data-t>Movie starts now</button>
+      </div>
+      <div class="bar hint">
+        <span data-t><b>−</b> if your movie is <b>behind</b> (the reaction audio comes first)</span>
+        <span data-t><b>+</b> if your movie is <b>ahead</b> (your audio comes first)</span>
+        <span data-t>Rough: press “Movie starts now” as soon as the movie begins in the reaction.</span>
+      </div>
+    </section>
+    <section class="card">
+      <h3 data-t>Volume</h3>
+      <label><span data-t>Master</span> <input id="volMaster" type="range" min="0" max="1" step="0.05" value="1"></label>
+      <label><span data-t>Movie</span> <input id="volMovie" type="range" min="0" max="1" step="0.05" value="1"></label>
+      <label>Reaction <input id="volReaction" type="range" min="0" max="1" step="0.05" value="1"></label>
+    </section>
+    <section class="card">
+      <h3 data-t>View</h3>
+      <label>Layout <select id="layout" title="Key L">
+        <option value="side" data-t>Side by side (reaction right)</option>
+        <option value="side-left" data-t>Side by side (reaction left)</option>
+        <option value="pip-br" data-t>Picture-in-picture bottom right</option>
+        <option value="pip-bl" data-t>Picture-in-picture bottom left</option>
+        <option value="pip-tr" data-t>Picture-in-picture top right</option>
+        <option value="pip-tl" data-t>Picture-in-picture top left</option>
+      </select></label>
+      <label><span data-t>Size</span> <input id="size" type="range" min="0" max="50" value="30"></label>
+      <div class="bar"><button id="hideR" data-i="eye" title="Key V">Hide reaction</button></div>
+    </section>
+  </div>
+</footer>
+
+<script>
+const $ = id => document.getElementById(id);
+
+// --- i18n ---
+// The source text is English; the English text is also the key. New language = entry in LANGS + dictionary in I18N.
+// Static texts: elements with data-t (content) plus all title/placeholder attributes. In code: t('Text {0}', value).
+const LANGS = { // flag: [viewBox, SVG content]
+  de: { name: 'Deutsch', flag: ['0 0 5 3', '<path d="M0 0h5v3H0z"/><path fill="#d00" d="M0 1h5v2H0z"/><path fill="#fc0" d="M0 2h5v1H0z"/>'] },
+  en: { name: 'English', flag: ['0 0 60 30', '<path fill="#012169" d="M0 0h60v30H0z"/><path stroke="#fff" stroke-width="6" d="M0 0l60 30M60 0L0 30"/><path stroke="#c8102e" stroke-width="2" d="M0 0l60 30M60 0L0 30"/><path stroke="#fff" stroke-width="10" d="M30 0v30M0 15h60"/><path stroke="#c8102e" stroke-width="6" d="M30 0v30M0 15h60"/>'] },
+};
+const I18N = { de: {
+  // Header & panel
+  'Sources': 'Quellen', 'Movie': 'Film', 'not selected': 'nicht gewählt', 'Keys': 'Tasten', 'Session link': 'Session-Link',
+  'Show / hide sources panel': 'Quellen-Panel ein- / ausblenden', 'Copy link with sources, offset and position': 'Link mit Quellen, Offset und Position kopieren',
+  'Keyboard shortcuts (H)': 'Tastenübersicht (H)', 'Close panel': 'Panel schließen', 'Dismiss message': 'Meldung schließen',
+  'Current': 'Aktuell', 'nothing selected yet': 'noch nichts gewählt', 'Local file': 'Lokale Datei', 'Search': 'Suchen', 'Load': 'Laden',
+  'YouTube link': 'YouTube-Link', 'or drag a file onto the video area': 'oder Datei auf den Videobereich ziehen',
+  'or drag a link onto the video area': 'oder Link auf den Videobereich ziehen',
+  'Offset and position are saved automatically per reaction in this browser.': 'Offset und Position werden pro Reaction automatisch in diesem Browser gespeichert.',
+  'Username': 'Benutzername', 'Password': 'Passwort', 'Sign in': 'Anmelden', 'Signed in as': 'Angemeldet als', 'Sign out': 'Abmelden',
+  'Install as app': 'Als App installieren', 'Afterwards Glotz3r starts like a program of its own – even without the server running.': 'Danach startet Glotz3r wie ein eigenes Programm – auch ohne laufenden Server.',
+  'Title, Jellyfin id or link…': 'Titel, Jellyfin-Id oder -Link…', 'Sign in to Jellyfin in the settings first': 'Erst in den Einstellungen bei Jellyfin anmelden',
+  'Language': 'Sprache', 'Jellyfin account': 'Jellyfin-Konto', 'Settings: Jellyfin account and language': 'Einstellungen: Jellyfin-Konto und Sprache',
+  'Select': 'Auswählen', '(empty)': '(leer)', 'Load more ({0} of {1})': 'Weitere laden ({0} von {1})', 'Resume': 'Fortsetzen', 'at': 'bei',
+  // Stage
+  'Nothing loaded yet': 'Noch nichts geladen',
+  'Choose movie and reaction under “Sources”<br>or drag video files here.': 'Film und Reaction unter „Quellen“ wählen<br>oder Videodateien hierher ziehen.',
+  'Choose sources': 'Quellen wählen',
+  'Reaction picture hidden, audio keeps playing – click or press V to show it': 'Reaction-Bild ausgeblendet, Ton läuft – klicken oder Taste V zum Einblenden',
+  'Drop movie here<small>video file</small>': 'Film hier ablegen<small>Videodatei</small>',
+  'Drop reaction here<small>video file or YouTube link</small>': 'Reaction hier ablegen<small>Videodatei oder YouTube-Link</small>',
+  'Space': 'Leertaste', 'Media keys: play / pause, stop': 'Media-Tasten: Play / Pause, Stopp',
+  'Movie starts now (reset offset)': 'Film startet jetzt (Offset neu setzen)', 'Next layout': 'Nächstes Layout',
+  'Hide / show reaction picture (audio keeps playing)': 'Reaction-Bild aus- / einblenden (Ton läuft weiter)',
+  'Fullscreen on / off': 'Vollbild an / aus', 'Show / hide this overview': 'Diese Übersicht ein- / ausblenden',
+  // Control dock
+  'Play / pause (Space)': 'Play / Pause (Leertaste)', 'Stop': 'Stopp', 'Fullscreen (F)': 'Vollbild (F)', 'Controls': 'Regler',
+  'Show / hide controls for offset, volume and view': 'Regler für Offset, Lautstärke und Ansicht ein- / ausblenden',
+  'Offset (seconds)': 'Offset (Sekunden)', 'Offset = reaction time at which the movie is at 0:00': 'Offset = Reaction-Zeit, zu der der Film bei 0:00 steht',
+  'Movie starts now': 'Film startet jetzt', 'Key R': 'Taste R', 'Key L': 'Taste L', 'Key V': 'Taste V',
+  '<b>−</b> if your movie is <b>behind</b> (the reaction audio comes first)': '<b>−</b> wenn dein Film <b>hinterherhinkt</b> (Ton der Reaction kommt zuerst)',
+  '<b>+</b> if your movie is <b>ahead</b> (your audio comes first)': '<b>+</b> wenn dein Film <b>voraus</b> ist (dein Ton kommt zuerst)',
+  'Rough: press “Movie starts now” as soon as the movie begins in the reaction.': 'Grob: „Film startet jetzt“ drücken, sobald der Film in der Reaction beginnt.',
+  'Volume': 'Lautstärke', 'Master': 'Gesamt', 'View': 'Ansicht', 'Size': 'Größe',
+  'Side by side (reaction right)': 'Nebeneinander (Reaction rechts)', 'Side by side (reaction left)': 'Nebeneinander (Reaction links)',
+  'Picture-in-picture bottom right': 'Bild-in-Bild unten rechts', 'Picture-in-picture bottom left': 'Bild-in-Bild unten links',
+  'Picture-in-picture top right': 'Bild-in-Bild oben rechts', 'Picture-in-picture top left': 'Bild-in-Bild oben links',
+  'Show reaction': 'Reaction einblenden', 'Hide reaction': 'Reaction ausblenden',
+  'Reaction picture hidden': 'Reaction-Bild ausgeblendet', 'Reaction picture shown': 'Reaction-Bild eingeblendet',
+  // Messages
+  'YouTube API not reachable': 'YouTube-API nicht erreichbar', 'YouTube error {0}': 'YouTube-Fehler {0}',
+  ': embedding not allowed (video restricted, or page not served via http/https).': ': Einbetten nicht erlaubt (Video gesperrt, oder Seite läuft nicht über http/https).',
+  'Video cannot be played (codec/container not supported by the browser?)': 'Video kann nicht abgespielt werden (Codec/Container vom Browser nicht unterstützt?)',
+  'hls.js could not be loaded': 'hls.js nicht ladbar', 'transcoded by server': 'vom Server umgewandelt', 'direct': 'direkt',
+  '{0}: stream error ({1})': '{0}: Stream-Fehler ({1})',
+  'Please sign in to Jellyfin and choose the movie “{0}”.': 'Bitte bei Jellyfin anmelden und den Film „{0}“ wählen.',
+  'Please choose the movie file “{0}”.': 'Bitte Film-Datei „{0}“ wählen.',
+  'No YouTube link recognised.': 'Kein YouTube-Link erkannt.', 'Only a video file works as the movie.': 'Als Film geht nur eine Videodatei.',
+  'Please sign in to Jellyfin – the session resumes automatically afterwards.': 'Bitte bei Jellyfin anmelden – die Session wird danach automatisch fortgesetzt.',
+  'Please choose the reaction file “{0}” – offset & position are then applied.': 'Bitte Reaction-Datei „{0}“ wählen – Offset & Position werden dann übernommen.',
+  'Session link copied to clipboard.': 'Session-Link in die Zwischenablage kopiert.', 'Copy session link:': 'Session-Link kopieren:',
+  'Load movie and reaction first.': 'Erst Film und Reaction laden.', 'Session link is invalid.': 'Session-Link ist ungültig.',
+  'Jellyfin address {0} taken from the session link.': 'Jellyfin-Adresse {0} aus dem Session-Link übernommen.',
+  'The session link belongs to the Jellyfin server {0}, but you are signed in to {1}.': 'Der Session-Link gehört zum Jellyfin-Server {0}, angemeldet bist du bei {1}.',
+  'Jellyfin returned no playable source{0}.': 'Jellyfin liefert keine abspielbare Quelle{0}.',
+  'Format not supported by the browser and Jellyfin offers no transcoding.': 'Format wird vom Browser nicht unterstützt und Jellyfin bietet keine Umwandlung an.',
+  'Please enter the Jellyfin address.': 'Bitte Jellyfin-Adresse eintragen.',
+  'Wrong credentials or sign-in expired.': 'Zugangsdaten falsch oder Anmeldung abgelaufen.',
+  'Jellyfin sign-in: {0}': 'Jellyfin-Anmeldung: {0}', 'Quick Connect is not enabled on the Jellyfin server.': 'Quick Connect ist auf dem Jellyfin-Server nicht aktiviert.',
+  'Code {0} – enter it in Jellyfin under Settings → Quick Connect': 'Code {0} – in Jellyfin unter Einstellungen → Quick Connect eingeben',
+  'Nothing found.': 'Nichts gefunden.', 'Jellyfin search failed: {0}': 'Jellyfin-Suche fehlgeschlagen: {0}',
+} };
+let lang = 'en';
+try { lang = localStorage.rwLang || navigator.language.slice(0, 2); } catch {}
+if (!LANGS[lang]) lang = 'en';
+const tr = s => I18N[lang]?.[s] ?? s;
+function t(s, ...a) {
+  if (lang !== 'en' && !(s in I18N[lang])) console.warn('i18n: missing translation', lang, s);
+  return tr(s).replace(/\{(\d)\}/g, (_, i) => a[i]);
+}
+function translateDom() { // remember the original (English) on the element during the first pass
+  document.documentElement.lang = lang;
+  for (const el of document.querySelectorAll('[data-t]')) el.innerHTML = t(el._t ??= el.innerHTML.trim());
+  for (const a of ['title', 'placeholder']) for (const el of document.querySelectorAll(`[${a}]`)) el[a] = tr((el._ta ??= {})[a] ??= el.getAttribute(a));
+}
+function setLang(l) {
+  lang = l; try { localStorage.rwLang = lang; } catch {}
+  for (const b of $('lang').children) b.classList.toggle('on', b.dataset.lang === lang);
+  // ponytail: Jellyfin tree rows that are already expanded keep their language until they are reloaded
+  translateDom(); showCurrent(); renderSessions(); renderLogin(); setReactionHidden($('stage').classList.contains('rhide'));
+}
+for (const [l, { name, flag }] of Object.entries(LANGS)) { // flags as SVG: Windows renders flag emoji as letters only
+  const b = document.createElement('button');
+  b.dataset.lang = l; b.onclick = () => setLang(l);
+  b.innerHTML = `<svg viewBox="${flag[0]}" width="22" height="14" preserveAspectRatio="none">${flag[1]}</svg>${name}`;
+  b.classList.toggle('on', l === lang);
+  $('lang').append(b);
+}
+translateDom();
+let toastTimer;
+function toast(t) { // short feedback on top of the video, visible in fullscreen too
+  $('toast').textContent = t; $('toast').hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').hidden = true, 2000);
+}
+let msgTimer;
+function msg(t) { // notice/error: stays for 12 s or until dismissed
+  $('msgText').textContent = t; $('msg').hidden = !t;
+  clearTimeout(msgTimer); if (t) msgTimer = setTimeout(() => $('msg').hidden = true, 12000);
+}
+$('msgClose').onclick = () => msg('');
+const S = $('movie'), V = $('rvideo');
+
+// --- YouTube as reaction ---
+// Adapter exposing the subset of HTMLMediaElement that sync() and friends use
+const ytApi = () => ytApi.p ??= new Promise((res, rej) => {
+  window.onYouTubeIframeAPIReady = res;
+  document.head.append(Object.assign(document.createElement('script'), {
+    src: 'https://www.youtube.com/iframe_api', onerror: () => rej(new Error(t('YouTube API not reachable'))),
+  }));
+});
+const Y = {
+  player: null, state: -1, start: 0,
+  clock: null, // video time − performance.now() in s; getCurrentTime() alone only updates ~4×/s
+  async load(id, start) {
+    this.start = start; this.state = -1; this.clock = null;
+    await ytApi();
+    this.player ??= await new Promise(res => {
+      const p = new YT.Player('yt', {
+        width: '100%', height: '100%', playerVars: { playsinline: 1, rel: 0 },
+        events: {
+          onReady: () => res(p),
+          onStateChange: e => this.onState(e.data),
+          onError: e => msg(t('YouTube error {0}', e.data) + ([101, 150, 153].includes(e.data) ? t(': embedding not allowed (video restricted, or page not served via http/https).') : '')),
+        },
+      });
+    });
+    applyVolume();
+    this.player.cueVideoById(id, start);
+  },
+  onState(s) { // -1 unstarted, 0 ended, 1 playing, 2 paused, 3 buffering, 5 cued
+    this.state = s;
+    this.clock = s === 1 ? this.player.getCurrentTime() - performance.now() / 1000 : null;
+    const title = this.player.getVideoData?.().title;
+    if (title && cur.reaction?.yt) { cur.reaction.name = title; updateMeta(); showCurrent(); }
+    if (M === this) { correcting = true; sync(); }
+  },
+  get started() { return this.player && this.state !== -1 && this.state !== 5; },
+  get paused() { return this.state !== 1; }, // buffering counts as paused so the movie waits
+  get currentTime() {
+    if (!this.started) return this.start;
+    return this.clock == null ? this.player.getCurrentTime() : this.clock + performance.now() / 1000;
+  },
+  set currentTime(t) { this.start = t; this.clock = null; this.player?.seekTo(t, true); },
+  get duration() { return this.player?.getDuration?.() || NaN; },
+  get readyState() { return this.player && this.state !== -1 ? 1 : 0; },
+  seeking: false,
+  set volume(v) { this.player?.setVolume(v * 100); },
+  play() { this.player?.playVideo(); return Promise.resolve(); },
+  pause() { this.player?.pauseVideo(); },
+};
+// The player reports its time via postMessage; timestamping on receipt and smoothing yields a ms-accurate clock.
+// ponytail: assumes 1× speed; factor the rate into the clock if other YouTube speeds are needed
+addEventListener('message', e => {
+  if (e.origin !== 'https://www.youtube.com' || typeof e.data !== 'string' || Y.state !== 1) return;
+  let d; try { d = JSON.parse(e.data); } catch { return; }
+  const t = d.info?.currentTime;
+  if (d.event !== 'infoDelivery' || t == null) return;
+  const c = t - performance.now() / 1000;
+  Y.clock = Y.clock != null && Math.abs(c - Y.clock) < 0.1 ? Y.clock + 0.1 * (c - Y.clock) : c; // jump > 100 ms = seek
+});
+
+// --- Sync ---
+let M = V; // master = reaction (continuous timeline; <video> or YouTube), the movie follows
+let offset = 0;
+
+function sync(force) {
+  if (S.seeking || !S.src) return;
+  const t = M.currentTime - offset;
+  if (t < 0 || t > (S.duration || Infinity)) { // movie not started yet / already over
+    S.pause();
+    if (t < 0 && S.currentTime) S.currentTime = 0;
+    return;
+  }
+  const drift = S.currentTime - t, abs = Math.abs(drift); // drift > 0: the movie is ahead
+  $('drift').textContent = `Drift ${Math.round(drift * 1000)} ms`;
+  if (force || abs > (M.paused ? 0.001 : 0.5)) {
+    // Seek exactly while paused. While playing, lead by the most recently measured seek duration,
+    // otherwise the movie lags again after rebuffering and seeks once more (stutter).
+    seekAt = performance.now();
+    S.currentTime = t + (M.paused ? 0 : lead);
+    correcting = true;
+    setRate(1);
+  } else if (!M.paused && S.readyState >= 3) {
+    // Change the rate rarely and in fixed steps: every change disturbs the movie's audio output.
+    // Correction starts above 40 ms (or after an offset change/seek) and ends below 5 ms.
+    if (abs > 0.04) correcting = true;
+    if (abs < 0.005) correcting = false;
+    setRate(correcting ? 1 - Math.sign(drift) * (abs > 0.1 ? 0.08 : 0.03) : 1);
+  }
+  if (M.paused) S.pause(); else if (S.paused) S.play().catch(e => msg(e.message));
+}
+let correcting = true, lead = 0, seekAt = 0;
+const setRate = r => { if (S.playbackRate !== r) S.playbackRate = r; };
+S.addEventListener('seeked', () => { if (seekAt) lead = Math.min(3, (performance.now() - seekAt) / 1000); seekAt = 0; });
+['play', 'pause', 'seeked'].forEach(e => V.addEventListener(e, () => { if (M === V) { correcting = true; sync(e === 'seeked'); } }));
+
+const fmt = s => new Date(s * 1000).toISOString().slice(11, 19);
+setInterval(() => {
+  sync();
+  const dur = M.duration || 0;
+  $('seek').max = dur;
+  if (!$('seek').matches(':active')) $('seek').value = M.currentTime;
+  $('time').textContent = `${fmt(M.currentTime)} / ${fmt(dur)}`;
+  document.body.classList.toggle('playing', !M.paused); // play/pause icon
+  if (ms) ms.playbackState = M.paused ? 'paused' : 'playing'; // otherwise it counts as "paused" while the movie waits for the intro to end
+}, 100);
+$('seek').onchange = e => M.currentTime = +e.target.value;
+
+function setOffset(v) {
+  offset = Math.round(v * 1000) / 1000;
+  $('offset').value = offset.toFixed(3);
+  correcting = true; // approach the new offset to within a few ms right away
+  sync();
+}
+$('offset').onchange = e => setOffset(+e.target.value || 0);
+const nudge = d => { setOffset(offset + d); toast(`Offset ${offset.toFixed(3)} s`); };
+document.querySelectorAll('[data-d]').forEach(b => b.onclick = () => nudge(+b.dataset.d));
+const restart = () => { setOffset(M.currentTime); toast(`${t('Movie starts now')} · Offset ${offset.toFixed(3)} s`); }; // movie 0:00 = current reaction time
+$('restart').onclick = restart;
+
+const toggle = () => M.paused ? M.play().catch(e => msg(e.message)) : M.pause();
+const stop = () => { M.pause(); M.currentTime = 0; };
+$('toggle').onclick = toggle;
+$('stop').onclick = stop;
+
+// Media keys / OS media controls: always control the master, the movie follows via sync()
+const ms = navigator.mediaSession;
+if (ms) {
+  ms.setActionHandler('play', () => M.play());
+  ms.setActionHandler('pause', () => M.pause());
+  ms.setActionHandler('stop', stop);
+  ms.setActionHandler('seekbackward', e => M.currentTime -= e.seekOffset || 10);
+  ms.setActionHandler('seekforward', e => M.currentTime += e.seekOffset || 10);
+}
+function updateMeta() {
+  if (ms) ms.metadata = new MediaMetadata({ title: cur.movie?.name || 'Glotz3r', artist: cur.reaction?.name || '' });
+}
+// Volume: master slider × individual slider; positions are stored in the browser
+const vols = ['volMaster', 'volMovie', 'volReaction'].map($);
+function applyVolume() {
+  const [m, f, r] = vols.map(v => +v.value);
+  S.volume = m * f; V.volume = Y.volume = m * r;
+}
+try { JSON.parse(localStorage.rwVol || '[]').forEach((v, i) => { if (vols[i] && v >= 0 && v <= 1) vols[i].value = v; }); } catch {}
+for (const v of vols) v.oninput = () => { applyVolume(); try { localStorage.rwVol = JSON.stringify(vols.map(v => +v.value)); } catch {} };
+applyVolume();
+$('size').oninput = e => $('reaction').style.width = e.target.value + '%';
+const fullscreen = () => document.fullscreenElement ? document.exitFullscreen() : $('stage').requestFullscreen();
+$('fs').onclick = fullscreen;
+const help = () => $('keys').hidden = !$('keys').hidden;
+$('help').onclick = $('keys').onclick = help;
+
+function setLayout(l) {
+  $('stage').dataset.layout = $('layout').value = l;
+  try { localStorage.rwLayout = l; } catch {}
+}
+function setReactionHidden(h) {
+  $('stage').classList.toggle('rhide', h);
+  $('rhidden').hidden = !h;
+  $('hideR').textContent = t(h ? 'Show reaction' : 'Hide reaction');
+  try { localStorage.rwHideReaction = h ? '1' : ''; } catch {}
+}
+const toggleReaction = () => { setReactionHidden(!$('stage').classList.contains('rhide')); toast(t($('stage').classList.contains('rhide') ? 'Reaction picture hidden' : 'Reaction picture shown')); };
+$('hideR').onclick = $('rhidden').onclick = toggleReaction;
+try { setReactionHidden(!!localStorage.rwHideReaction); } catch {}
+
+const layouts = [...$('layout').options].map(o => o.value);
+const nextLayout = () => setLayout(layouts[(layouts.indexOf($('layout').value) + 1) % layouts.length]);
+$('layout').onchange = e => setLayout(e.target.value);
+try { if (layouts.includes(localStorage.rwLayout)) setLayout(localStorage.rwLayout); } catch {}
+
+document.addEventListener('keydown', e => {
+  if (/text|number|select|password/.test(e.target.type) || e.ctrlKey || e.metaKey || e.altKey) return; // leave Ctrl+R, Ctrl+V etc. to the browser
+  const d = { ',': -0.01, '.': 0.01, '-': -0.1, '+': 0.1 }[e.key];
+  if (d) nudge(d);
+  else if (e.key === 'r' || e.key === 'R') restart();
+  else if (e.key === 'l' || e.key === 'L') { nextLayout(); toast($('layout').selectedOptions[0].text); }
+  else if (e.key === 'v' || e.key === 'V') toggleReaction();
+  else if (e.key === 'f' || e.key === 'F') fullscreen();
+  else if (e.key === 'h' || e.key === 'H' || e.key === '?') help();
+  else if (e.key === ' ') { e.preventDefault(); toggle(); }
+});
+
+const btn = (text, fn, icon) => { const b = document.createElement('button'); b.textContent = text; b.onclick = fn; if (icon) b.dataset.i = icon; return b; };
+const row = (...kids) => { const r = document.createElement('span'); r.append(...kids); return r; };
+
+// --- Sources & sessions ---
+// source = { key, name, id?, yt? }; key = 'jf:<Jellyfin id>', 'yt:<video id>' or 'file:<name>:<size>'
+const cur = {};
+for (const v of [V, S]) v.onerror = () => v.src && msg(`${v === S ? t('Movie') : 'Reaction'}: ${t('Video cannot be played (codec/container not supported by the browser?)')}`);
+
+// Load a source into a <video>: local files directly; for Jellyfin the server decides (PlaybackInfo)
+// whether the browser can play the file directly or whether it is transcoded to an HLS stream.
+const playMode = {};
+const hlsLib = () => hlsLib.p ??= new Promise((res, rej) => document.head.append(Object.assign(document.createElement('script'), {
+  src: 'https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js', onload: res, onerror: () => rej(new Error(t('hls.js could not be loaded'))),
+})));
+async function setSource(v, item, fileUrl) {
+  const slot = v === S ? 'movie' : 'reaction';
+  v._hls?.destroy(); v._hls = null; playMode[slot] = '';
+  try {
+    const { url, hls } = item.id ? await jfSource(item.id) : { url: fileUrl };
+    if (cur[slot] !== item) return; // something else has been selected in the meantime
+    if (item.id) playMode[slot] = hls ? 'transcoded by server' : 'direct';
+    showCurrent();
+    if (!hls || !window.MediaSource) return void (v.src = url); // without MediaSource (Safari) the browser plays HLS natively
+    await hlsLib();
+    v._hls = new Hls();
+    v._hls.on(Hls.Events.ERROR, (_, d) => d.fatal && msg(t('{0}: stream error ({1})', item.name, d.details)));
+    v._hls.loadSource(url); v._hls.attachMedia(v);
+  } catch (e) { msg(`${item.name}: ${e.message}`); }
+}
+
+function loadMovie(src, item) { cur.movie = item; msg(''); updateMeta(); showCurrent('movie'); setSource(S, item, src); }
+function loadReaction(item, src) { // a saved session for this reaction is applied automatically
+  const s = sessions()[item.key];
+  M.pause();
+  M = item.yt ? Y : V;
+  V.hidden = !!item.yt; $('ytbox').hidden = !item.yt;
+  cur.reaction = item; msg(''); updateMeta(); showCurrent('reaction');
+  if (item.yt) {
+    V._hls?.destroy(); V._hls = null; V.removeAttribute('src'); V.load();
+    Y.load(item.yt, s?.pos || 0).catch(e => msg(e.message));
+  } else {
+    setSource(V, item, src);
+    if (s) V.addEventListener('loadedmetadata', () => V.currentTime = s.pos, { once: true });
+  }
+  if (!s) return;
+  setOffset(s.offset);
+  if (cur.movie?.key === s.movie.key) return;
+  if (s.movie.id && loggedIn()) loadMovie(null, s.movie);
+  else msg(t(s.movie.id ? 'Please sign in to Jellyfin and choose the movie “{0}”.' : 'Please choose the movie file “{0}”.', s.movie.name));
+}
+const fileItem = f => ({ key: `file:${f.name}:${f.size}`, name: f.name });
+
+const ytId = url => url.trim().match(/(?:v=|youtu\.be\/|shorts\/|embed\/|live\/)([\w-]{11})|^([\w-]{11})$/)?.slice(1).find(Boolean);
+const loadYt = id => id ? loadReaction({ key: `yt:${id}`, name: `YouTube ${id}`, yt: id }) : msg(t('No YouTube link recognised.'));
+
+// Source selection: one block each for movie and reaction; exactly one source type is shown per block
+const slots = [...document.querySelectorAll('.slot')];
+const srcType = item => item.yt ? 'yt' : item.id ? 'jf' : 'file';
+const srcLabel = type => ({ jf: 'Jellyfin', yt: 'YouTube' })[type] ?? t('Local file');
+function showSrc(box, type) {
+  box.querySelector(`input[type=radio][value=${type}]`).checked = true;
+  for (const el of box.querySelectorAll('[data-src]')) el.hidden = el.dataset.src !== type;
+}
+function showCurrent(slot) { // the "Current" line shows what is actually loaded – whether via selection, drop or session
+  for (const box of slots) {
+    const item = cur[box.dataset.slot];
+    if (!item) continue;
+    $('empty').hidden = true;
+    for (const el of document.querySelectorAll(`[data-now=${box.dataset.slot}]`)) el.textContent = `${item.name} (${srcLabel(srcType(item))}${playMode[box.dataset.slot] ? ', ' + t(playMode[box.dataset.slot]) : ''})`;
+    if (box.dataset.slot === slot) showSrc(box, srcType(item)); // only switch on load, not on title updates
+  }
+}
+for (const box of slots) {
+  const pick = box.pick = (item, src) => box.dataset.slot === 'movie' ? loadMovie(src, item) : loadReaction(item, src);
+  const yt = box.querySelector('.yt');
+  showSrc(box, 'jf');
+  box.querySelectorAll('input[type=radio]').forEach(r => r.onchange = () => showSrc(box, r.value));
+  box.querySelector('input[type=file]').onchange = e => { const f = e.target.files[0]; if (f) pick(fileItem(f), URL.createObjectURL(f)); };
+  box.querySelector('.q').onkeydown = e => { if (e.key === 'Enter') search(box, pick); }; // no return value: false would discard the keystroke
+  box.querySelector('.search').onclick = () => search(box, pick);
+  if (yt) {
+    yt.onkeydown = e => { if (e.key === 'Enter') loadYt(ytId(yt.value)); };
+    box.querySelector('.ytLoad').onclick = () => loadYt(ytId(yt.value));
+  }
+}
+
+// Drag & drop: drag a file (or YouTube link) onto the movie or reaction half of the stage
+let dropTimer;
+const dropZone = e => e.target.closest?.('#drop [data-as]');
+addEventListener('dragover', e => {
+  if (!['Files', 'text/uri-list'].some(t => e.dataTransfer.types.includes(t))) return; // e.g. selected text from an input field
+  e.preventDefault();
+  $('drop').hidden = false;
+  for (const z of $('drop').children) z.classList.toggle('over', z === dropZone(e));
+  clearTimeout(dropTimer); // dragover fires continuously; once it stops, the pointer has left the page
+  dropTimer = setTimeout(() => $('drop').hidden = true, 600);
+});
+addEventListener('drop', e => {
+  e.preventDefault(); // otherwise the browser opens the file instead of the page
+  $('drop').hidden = true;
+  const as = dropZone(e)?.dataset.as, f = e.dataTransfer.files[0];
+  if (!as) return;
+  if (f && as === 'movie') loadMovie(URL.createObjectURL(f), fileItem(f));
+  else if (f) loadReaction(fileItem(f), URL.createObjectURL(f));
+  else if (as === 'reaction') loadYt(ytId(e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain')));
+  else msg(t('Only a video file works as the movie.'));
+});
+
+// ponytail: sessions live only in this browser's localStorage; export/Jellyfin sync once multiple devices are needed
+function sessions() { try { return JSON.parse(localStorage.rwSessions || '{}'); } catch { return {}; } }
+function storeSessions(all) { try { localStorage.rwSessions = JSON.stringify(all); } catch {} }
+
+let pending; // session waiting for the Jellyfin sign-in
+function openSession(s) {
+  const r = s.reaction;
+  if ((r.id || s.movie.id) && !loggedIn()) {
+    pending = s;
+    setPanel(true, 'jf');
+    return msg(t('Please sign in to Jellyfin – the session resumes automatically afterwards.'));
+  }
+  if (r.yt || r.id) loadReaction(r);
+  else msg(t('Please choose the reaction file “{0}” – offset & position are then applied.', r.name));
+}
+const current = () => ({ movie: cur.movie, reaction: cur.reaction, offset, pos: M.currentTime, at: Date.now() });
+setInterval(() => { // autosave: offset + position per reaction
+  if (!cur.movie || !cur.reaction || M.readyState < 1 || M.seeking) return;
+  const all = sessions();
+  all[cur.reaction.key] = current();
+  storeSessions(all);
+}, 2000);
+
+// --- Session link: sources, offset and position in the URL hash; for Jellyfin sources also the server address, never the access token ---
+function sessionLink(s) {
+  const p = new URLSearchParams({ m: s.movie.key, mn: s.movie.name, r: s.reaction.key, rn: s.reaction.name, o: s.offset, t: s.pos.toFixed(1) });
+  if ((s.movie.id || s.reaction.id) && base() !== '/') p.set('s', base());
+  return `${location.href.split('#')[0]}#${p}`;
+}
+async function copyLink(s) {
+  const url = sessionLink(s);
+  try { await navigator.clipboard.writeText(url); msg(t('Session link copied to clipboard.')); }
+  catch { prompt(t('Copy session link:'), url); } // the Clipboard API is only available via https/localhost
+}
+$('link').onclick = () => cur.movie && cur.reaction ? copyLink(current()) : msg(t('Load movie and reaction first.'));
+
+function itemFromKey(key, name) { // link content is untrusted input: only let known shapes through
+  const [, type, rest] = key?.match(/^(jf|yt|file):(.+)$/) || [];
+  if (type === 'jf' && /^[\w-]+$/.test(rest)) return { key, name, id: rest };
+  if (type === 'yt' && /^[\w-]{11}$/.test(rest)) return { key, name, yt: rest };
+  if (type === 'file') return { key, name };
+}
+function openLink() {
+  const p = new URLSearchParams(location.hash.slice(1));
+  const movie = itemFromKey(p.get('m'), p.get('mn') || t('Movie')), reaction = itemFromKey(p.get('r'), p.get('rn') || 'Reaction');
+  if (!location.hash.includes('r=')) return;
+  history.replaceState(null, '', location.href.split('#')[0]); // otherwise a reload resets the position to the link's state
+  if (!movie || !reaction) return msg(t('Session link is invalid.'));
+  const s = { movie, reaction, offset: +p.get('o') || 0, pos: Math.max(0, +p.get('t') || 0), at: Date.now() };
+  const all = sessions(); all[reaction.key] = s; storeSessions(all);
+  renderSessions();
+  // Server address from the link (untrusted input): http(s) only, only adopted when not signed in,
+  // and always shown – the password is sent to this address afterwards.
+  let srv = ''; try { const u = new URL(p.get('s')); if (/^https?:$/.test(u.protocol)) srv = u.href.replace(/\/*$/, '/'); } catch {}
+  if (srv && !configServer && srv !== base()) {
+    if (loggedIn()) return msg(t('The session link belongs to the Jellyfin server {0}, but you are signed in to {1}.', srv, base()));
+    $('server').value = srv; $('server').onchange();
+    openSession(s);
+    return msg(t('Jellyfin address {0} taken from the session link.', srv) + ' ' + $('msgText').textContent);
+  }
+  openSession(s);
+}
+
+function renderSessions() {
+  const all = sessions();
+  $('sessions').replaceChildren(...Object.entries(all).sort((a, b) => b[1].at - a[1].at).map(([k, s]) => row(
+    btn(t('Resume'), () => openSession(s), 'play'),
+    btn('', () => copyLink(s), 'link'),
+    btn('✕', () => { delete all[k]; storeSessions(all); renderSessions(); }),
+    `${s.reaction.name} ↔ ${s.movie.name} · Offset ${s.offset.toFixed(3)} s · ${t('at')} ${fmt(s.pos)}`,
+  )));
+}
+
+// --- UI state: panel open?, which tab?, controls collapsed? – stored in the browser ---
+const ui = (key, def) => { try { return localStorage['rwUi' + key] ?? def; } catch { return def; } };
+function setUi(key, v) { try { localStorage['rwUi' + key] = v; } catch {} }
+function setPanel(open, tab = ui('Tab', 'movie')) {
+  document.body.classList.toggle('panel', open); setUi('Panel', open ? '1' : '');
+  setUi('Tab', tab);
+  for (const b of document.querySelectorAll('.tabs [data-tab]')) b.classList.toggle('on', b.dataset.tab === tab);
+  for (const p of document.querySelectorAll('[data-pane]')) p.hidden = p.dataset.pane !== tab;
+  renderSessions();
+}
+document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => setPanel(true, b.dataset.tab));
+$('panelBtn').onclick = () => setPanel(!document.body.classList.contains('panel'));
+$('panelClose').onclick = () => setPanel(false);
+$('more').onclick = () => setUi('Compact', document.body.classList.toggle('compact') ? '1' : '');
+document.body.classList.toggle('compact', !!ui('Compact', ''));
+setPanel(!!ui('Panel', '1')); // open on the first visit
+
+// --- Jellyfin ---
+// The server address comes from the deployment (config.json, see main.go: -jellyfin / JELLYFIN_URL) or else from the input field.
+// Sign-in with the user's own Jellyfin account; only the token is stored, never the password.
+let configServer = '';
+let jf = {}; // { server, token, userId, name }
+let deviceId = 'glotz3r';
+try {
+  jf = JSON.parse(localStorage.rwJf || '{}');
+  $('server').value = localStorage.jfServer || '';
+  deviceId = localStorage.rwDevice ||= crypto.randomUUID?.() ?? Math.random().toString(36).slice(2);
+} catch {}
+const base = () => (configServer || $('server').value).trim().replace(/\/*$/, '/');
+const loggedIn = () => !!jf.token && jf.server === base();
+
+// What this browser can play itself; Jellyfin transcodes everything else to H.264/AAC as HLS
+const can = type => !!document.createElement('video').canPlayType(type);
+const deviceProfile = () => ({
+  MaxStreamingBitrate: 120000000,
+  DirectPlayProfiles: [
+    { Type: 'Video', Container: 'mp4,m4v,mov', AudioCodec: 'aac,mp3,opus,flac',
+      VideoCodec: ['h264', 'vp9', can('video/mp4; codecs="hvc1.1.6.L120.90"') && 'hevc', can('video/mp4; codecs="av01.0.08M.08"') && 'av1'].filter(Boolean).join() },
+    { Type: 'Video', Container: 'webm', VideoCodec: 'vp8,vp9,av1', AudioCodec: 'opus,vorbis' },
+  ],
+  TranscodingProfiles: [{ Type: 'Video', Container: 'ts', Protocol: 'hls', Context: 'Streaming', VideoCodec: 'h264', AudioCodec: 'aac', MaxAudioChannels: '2', MinSegments: 1, BreakOnNonKeyFrames: false }],
+  CodecProfiles: [{ Type: 'Video', Codec: 'h264', Conditions: [{ Condition: 'LessThanEqual', Property: 'VideoBitDepth', Value: '8', IsRequired: false }] }], // no browser plays 10-bit H.264
+  ContainerProfiles: [], SubtitleProfiles: [],
+});
+// ponytail: transcoding is not stopped actively; Jellyfin cleans it up itself once no more segments are requested
+async function jfSource(id) {
+  const info = await api(`Items/${id}/PlaybackInfo?userId=${jf.userId}`, { method: 'POST', body: JSON.stringify({
+    UserId: jf.userId, DeviceProfile: deviceProfile(), MaxStreamingBitrate: 120000000,
+    EnableDirectPlay: true, EnableDirectStream: true, EnableTranscoding: true, AutoOpenLiveStream: true,
+  }) });
+  const src = info.MediaSources?.[0];
+  if (!src) throw new Error(t('Jellyfin returned no playable source{0}.', info.ErrorCode ? ` (${info.ErrorCode})` : ''));
+  if (src.SupportsDirectPlay || src.SupportsDirectStream) {
+    return { url: `${base()}Videos/${id}/stream?static=true&mediaSourceId=${encodeURIComponent(src.Id)}&ApiKey=${encodeURIComponent(jf.token)}` };
+  }
+  if (!src.TranscodingUrl) throw new Error(t('Format not supported by the browser and Jellyfin offers no transcoding.'));
+  return { url: base() + src.TranscodingUrl.replace(/^\//, ''), hls: true };
+}
+
+async function api(path, opts = {}) {
+  if (base() === '/') throw new Error(t('Please enter the Jellyfin address.'));
+  const auth = `MediaBrowser Client="Glotz3r", Device="Browser", DeviceId="${deviceId}", Version="1.0"` + (loggedIn() ? `, Token="${jf.token}"` : '');
+  const r = await fetch(new URL(path, base()), { ...opts, headers: { 'Content-Type': 'application/json', Authorization: auth } });
+  if (r.status === 401 && loggedIn()) setLogin({}); // token expired or revoked
+  if (!r.ok) throw new Error(r.status === 401 ? t('Wrong credentials or sign-in expired.') : `HTTP ${r.status}`);
+  return r.status === 204 ? null : r.json();
+}
+function setLogin(auth) {
+  jf = auth.AccessToken ? { server: base(), token: auth.AccessToken, userId: auth.User.Id, name: auth.User.Name } : {};
+  try { localStorage.rwJf = JSON.stringify(jf); } catch {}
+  renderLogin();
+  if (loggedIn() && pending) { const s = pending; pending = null; openSession(s); }
+}
+function renderLogin() {
+  $('jfLogin').hidden = loggedIn(); $('jfUser').hidden = !loggedIn();
+  $('server').hidden = !!configServer;
+  $('who').textContent = jf.name || '';
+  document.body.classList.toggle('jf-in', loggedIn()); // dot on the settings tab
+  for (const box of slots) {
+    box.querySelector('.jf').disabled = !loggedIn();
+    box.querySelector('.q').placeholder = t(loggedIn() ? 'Title, Jellyfin id or link…' : 'Sign in to Jellyfin in the settings first');
+    if (!loggedIn()) box.querySelector('.results').replaceChildren();
+    const tree = box.querySelector('.tree'), who = loggedIn() ? jf.token : '';
+    if (tree.dataset.who !== who) { // rebuild only on sign-in/sign-out, otherwise keep expanded branches
+      tree.dataset.who = who;
+      tree.replaceChildren();
+      if (who) loadTree(tree, null, box.pick);
+    }
+  }
+}
+$('server').onchange = () => { try { localStorage.jfServer = $('server').value.trim(); } catch {} renderLogin(); };
+
+$('jfLogin').onsubmit = async e => {
+  e.preventDefault();
+  try {
+    setLogin(await api('Users/AuthenticateByName', { method: 'POST', body: JSON.stringify({ Username: $('user').value, Pw: $('pw').value }) }));
+    $('pw').value = ''; msg('');
+  } catch (e) { msg(t('Jellyfin sign-in: {0}', e.message)); }
+};
+
+let qcTimer;
+const qcStop = () => { clearInterval(qcTimer); $('qcCode').textContent = ''; };
+$('qc').onclick = async () => {
+  qcStop();
+  try {
+    if (!await api('QuickConnect/Enabled')) return msg(t('Quick Connect is not enabled on the Jellyfin server.'));
+    const { Secret, Code } = await api('QuickConnect/Initiate', { method: 'POST' })
+      .catch(() => api('QuickConnect/Initiate')); // Jellyfin < 10.9 expects GET
+    msg('');
+    $('qcCode').textContent = t('Code {0} – enter it in Jellyfin under Settings → Quick Connect', Code);
+    qcTimer = setInterval(async () => {
+      try {
+        if (!(await api(`QuickConnect/Connect?secret=${encodeURIComponent(Secret)}`)).Authenticated) return;
+        qcStop();
+        setLogin(await api('Users/AuthenticateWithQuickConnect', { method: 'POST', body: JSON.stringify({ Secret }) }));
+      } catch (e) { qcStop(); msg(`Quick Connect: ${e.message}`); }
+    }, 3000);
+  } catch (e) { msg(`Quick Connect: ${e.message}`); }
+};
+$('logout').onclick = () => { api('Sessions/Logout', { method: 'POST' }).catch(() => {}); setLogin({}); };
+
+// Jellyfin id directly (32 hex characters or GUID) or from a Jellyfin link (…details?id=…)
+const jfId = q => q.match(/[?&]id=([0-9a-f-]{32,36})/i)?.[1] ?? (/^[0-9a-f-]{32,36}$/i.test(q) ? q : null);
+const pad2 = n => String(n ?? 0).padStart(2, '0');
+const jfName = it => it.SeriesName
+  ? `${it.SeriesName} S${pad2(it.ParentIndexNumber)}E${pad2(it.IndexNumber)} – ${it.Name}`
+  : `${it.Name}${it.ProductionYear ? ` (${it.ProductionYear})` : ''}`;
+const jfItem = it => ({ key: `jf:${it.Id}`, name: jfName(it), id: it.Id });
+
+// Tree: libraries → movies or series → season → episode. parentId null = the user's libraries.
+const noVideo = ['music', 'books', 'photos', 'livetv', 'playlists'];
+async function loadTree(el, parentId, pick, start = 0) {
+  try {
+    const { Items, TotalRecordCount } = parentId
+      ? await api(`Items?${new URLSearchParams({ userId: jf.userId, parentId, SortBy: 'IsFolder,SortName', StartIndex: start, Limit: 200 })}`)
+      : await api(`UserViews?userId=${jf.userId}`);
+    el.querySelector(':scope > .more')?.remove();
+    el.append(...Items.filter(it => !noVideo.includes(it.CollectionType)).map(it => {
+      if (!it.IsFolder) { // playable; inside a season the episode number is enough as a label
+        if (it.MediaType !== 'Video') return '';
+        return row(btn(t('Select'), () => pick(jfItem(it))), it.Type === 'Episode' ? `${it.IndexNumber ?? '?'}. ${it.Name}` : jfName(it));
+      }
+      const d = document.createElement('details'), sum = document.createElement('summary');
+      sum.textContent = it.Name + (it.ProductionYear ? ` (${it.ProductionYear})` : '');
+      d.append(sum);
+      d.ontoggle = () => { if (d.open && !d.dataset.loaded) { d.dataset.loaded = 1; loadTree(d, it.Id, pick); } };
+      return d;
+    }));
+    if (parentId && !TotalRecordCount) el.append(row(t('(empty)')));
+    if (parentId && start + Items.length < TotalRecordCount) {
+      const more = row(btn(t('Load more ({0} of {1})', start + Items.length, TotalRecordCount), () => loadTree(el, parentId, pick, start + Items.length)));
+      more.className = 'more';
+      el.append(more);
+    }
+  } catch (e) {
+    delete el.dataset.loaded; // retry the next time it is opened
+    msg(`Jellyfin: ${e.message}`);
+  }
+}
+
+async function search(box, pick) {
+  const q = box.querySelector('.q').value.trim(), id = jfId(q);
+  const params = new URLSearchParams({
+    userId: jf.userId,
+    ...(id ? { ids: id } : { searchTerm: q, Recursive: true, Limit: 25, IncludeItemTypes: 'Movie,Episode,Video' }),
+  });
+  try {
+    const { Items } = await api(`Items?${params}`);
+    box.querySelector('.results').replaceChildren(...Items.map(it => row(btn(t('Select'), () => pick(jfItem(it))), jfName(it))));
+    msg(Items.length ? '' : t('Nothing found.'));
+  } catch (e) { msg(t('Jellyfin search failed: {0}', e.message)); }
+}
+
+// --- Installable as an app (PWA): sw.js keeps the page cached so it starts without the server running ---
+navigator.serviceWorker?.register('sw.js').catch(() => {});
+let installPrompt;
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); installPrompt = e; $('installBox').hidden = false; }); // the browser offers installation
+addEventListener('appinstalled', () => $('installBox').hidden = true);
+$('install').onclick = () => installPrompt?.prompt();
+
+// Start: read the deployment configuration first, then show the sign-in state and open a session link if present
+fetch('config.json').then(r => r.json()).then(c => configServer = c.jellyfin || '').catch(() => {}).finally(() => {
+  renderLogin();
+  addEventListener('hashchange', openLink);
+  openLink();
+});
+</script>
+</body>
+</html>
