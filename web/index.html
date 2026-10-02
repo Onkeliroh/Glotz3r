@@ -342,6 +342,9 @@
 
 <script>
 const $ = id => document.getElementById(id);
+// localStorage may be blocked or full: reading falls back to the default, writing fails silently
+const stored = (key, def = '') => { try { return localStorage[key] ?? def; } catch { return def; } };
+const store = (key, v) => { try { localStorage[key] = v; } catch {} };
 
 // --- i18n ---
 // The source text is English; the English text is also the key. New language = entry in LANGS + dictionary in I18N.
@@ -414,7 +417,7 @@ const I18N = { de: {
   'Nothing found.': 'Nichts gefunden.', 'Jellyfin search failed: {0}': 'Jellyfin-Suche fehlgeschlagen: {0}',
 } };
 let lang = 'en';
-try { lang = localStorage.rwLang || navigator.language.slice(0, 2); } catch {}
+lang = stored('rwLang') || navigator.language.slice(0, 2);
 if (!LANGS[lang]) lang = 'en';
 const tr = s => I18N[lang]?.[s] ?? s;
 function t(s, ...a) {
@@ -427,7 +430,7 @@ function translateDom() { // remember the original (English) on the element duri
   for (const a of ['title', 'placeholder']) for (const el of document.querySelectorAll(`[${a}]`)) el[a] = tr((el._ta ??= {})[a] ??= el.getAttribute(a));
 }
 function setLang(l) {
-  lang = l; try { localStorage.rwLang = lang; } catch {}
+  lang = l; store('rwLang', lang);
   for (const b of $('lang').children) b.classList.toggle('on', b.dataset.lang === lang);
   // ponytail: Jellyfin tree rows that are already expanded keep their language until they are reloaded
   translateDom(); showCurrent(); renderSessions(); renderLogin(); setReactionHidden($('stage').classList.contains('rhide'));
@@ -599,8 +602,8 @@ function applyVolume() {
   const [m, f, r] = vols.map(v => +v.value);
   S.volume = m * f; V.volume = Y.volume = m * r;
 }
-try { JSON.parse(localStorage.rwVol || '[]').forEach((v, i) => { if (vols[i] && v >= 0 && v <= 1) vols[i].value = v; }); } catch {}
-for (const v of vols) v.oninput = () => { applyVolume(); try { localStorage.rwVol = JSON.stringify(vols.map(v => +v.value)); } catch {} };
+try { JSON.parse(stored('rwVol', '[]')).forEach((v, i) => { if (vols[i] && v >= 0 && v <= 1) vols[i].value = v; }); } catch {}
+for (const v of vols) v.oninput = () => { applyVolume(); store('rwVol', JSON.stringify(vols.map(v => +v.value))); };
 applyVolume();
 $('size').oninput = e => $('reaction').style.width = e.target.value + '%';
 const fullscreen = () => document.fullscreenElement ? document.exitFullscreen() : $('stage').requestFullscreen();
@@ -610,22 +613,22 @@ $('help').onclick = $('keys').onclick = help;
 
 function setLayout(l) {
   $('stage').dataset.layout = $('layout').value = l;
-  try { localStorage.rwLayout = l; } catch {}
+  store('rwLayout', l);
 }
 function setReactionHidden(h) {
   $('stage').classList.toggle('rhide', h);
   $('rhidden').hidden = !h;
   $('hideR').textContent = t(h ? 'Show reaction' : 'Hide reaction');
-  try { localStorage.rwHideReaction = h ? '1' : ''; } catch {}
+  store('rwHideReaction', h ? '1' : '');
 }
 const toggleReaction = () => { setReactionHidden(!$('stage').classList.contains('rhide')); toast(t($('stage').classList.contains('rhide') ? 'Reaction picture hidden' : 'Reaction picture shown')); };
 $('hideR').onclick = $('rhidden').onclick = toggleReaction;
-try { setReactionHidden(!!localStorage.rwHideReaction); } catch {}
+setReactionHidden(!!stored('rwHideReaction'));
 
 const layouts = [...$('layout').options].map(o => o.value);
 const nextLayout = () => setLayout(layouts[(layouts.indexOf($('layout').value) + 1) % layouts.length]);
 $('layout').onchange = e => setLayout(e.target.value);
-try { if (layouts.includes(localStorage.rwLayout)) setLayout(localStorage.rwLayout); } catch {}
+if (layouts.includes(stored('rwLayout'))) setLayout(stored('rwLayout'));
 
 document.addEventListener('keydown', e => {
   if (/text|number|select|password/.test(e.target.type) || e.ctrlKey || e.metaKey || e.altKey) return; // leave Ctrl+R, Ctrl+V etc. to the browser
@@ -636,7 +639,7 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'v' || e.key === 'V') toggleReaction();
   else if (e.key === 'f' || e.key === 'F') fullscreen();
   else if (e.key === 'h' || e.key === 'H' || e.key === '?') help();
-  else if (e.key === ' ') { e.preventDefault(); toggle(); }
+  else if (e.key === ' ' && !e.target.closest?.('button, summary, select, input:not([type=range])')) { e.preventDefault(); toggle(); } // a focused control keeps its own Space
 });
 
 const btn = (text, fn, icon) => { const b = document.createElement('button'); b.textContent = text; b.onclick = fn; if (icon) b.dataset.i = icon; return b; };
@@ -675,10 +678,10 @@ async function setSource(v, item, fileUrl) {
 }
 
 let movieWanted = false; // the session's movie still has to be chosen by hand: do not autosave over it with the current one
-function loadMovie(src, item) { movieWanted = false; cur.movie = item; msg(''); updateMeta(); showCurrent('movie'); setSource(S, item, src); }
+function loadMovie(item, src) { pending = null; movieWanted = false; cur.movie = item; msg(''); updateMeta(); showCurrent('movie'); setSource(S, item, src); }
 function loadReaction(item, src) { // a saved session for this reaction is applied automatically
   const s = sessions()[item.key];
-  movieWanted = false;
+  movieWanted = false; pending = null; // a manual choice replaces a session that was waiting for the sign-in
   // Property instead of a listener: a restore left over from a failed or superseded load must not hit this reaction
   V.onloadedmetadata = s && !item.yt ? () => { V.onloadedmetadata = null; V.currentTime = s.pos; } : null;
   M.pause();
@@ -694,7 +697,7 @@ function loadReaction(item, src) { // a saved session for this reaction is appli
   if (!s) return;
   setOffset(s.offset);
   if (cur.movie?.key === s.movie.key) return;
-  if (s.movie.id && loggedIn()) return loadMovie(null, s.movie);
+  if (s.movie.id && loggedIn()) return loadMovie(s.movie);
   movieWanted = true;
   msg(t(s.movie.id ? 'Please sign in to Jellyfin and choose the movie “{0}”.' : 'Please choose the movie file “{0}”.', s.movie.name));
 }
@@ -721,7 +724,7 @@ function showCurrent(slot) { // the "Current" line shows what is actually loaded
   }
 }
 for (const box of slots) {
-  const pick = box.pick = (item, src) => box.dataset.slot === 'movie' ? loadMovie(src, item) : loadReaction(item, src);
+  const pick = box.pick = box.dataset.slot === 'movie' ? loadMovie : loadReaction;
   const yt = box.querySelector('.yt');
   showSrc(box, 'jf');
   box.querySelectorAll('input[type=radio]').forEach(r => r.onchange = () => showSrc(box, r.value));
@@ -746,12 +749,12 @@ addEventListener('dragover', e => {
   dropTimer = setTimeout(() => $('drop').hidden = true, 600);
 });
 addEventListener('drop', e => {
-  e.preventDefault(); // otherwise the browser opens the file instead of the page
   $('drop').hidden = true;
+  if (e.target.closest?.('input')) return; // input fields take the file or text themselves
+  e.preventDefault(); // otherwise the browser opens the file instead of the page
   const as = dropZone(e)?.dataset.as, f = e.dataTransfer.files[0];
   if (!as) return;
-  if (f && as === 'movie') loadMovie(URL.createObjectURL(f), fileItem(f));
-  else if (f) loadReaction(fileItem(f), URL.createObjectURL(f));
+  if (f) (as === 'movie' ? loadMovie : loadReaction)(fileItem(f), URL.createObjectURL(f));
   else if (as === 'reaction') loadYt(ytId(e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain')));
   else msg(t('Only a video file works as the movie.'));
 });
@@ -759,7 +762,7 @@ addEventListener('drop', e => {
 // ponytail: sessions live only in this browser's localStorage; export/Jellyfin sync once multiple devices are needed
 function sessions() { // stored data is not trusted: broken entries are dropped, numbers made finite (JSON turns Infinity into null)
   try {
-    const all = JSON.parse(localStorage.rwSessions || '{}');
+    const all = JSON.parse(stored('rwSessions', '{}'));
     for (const [k, s] of Object.entries(all)) {
       if (!s?.reaction?.key || !s.movie?.key) delete all[k];
       else { s.offset = +s.offset || 0; s.pos = +s.pos || 0; }
@@ -767,7 +770,7 @@ function sessions() { // stored data is not trusted: broken entries are dropped,
     return all;
   } catch { return {}; }
 }
-function storeSessions(all) { try { localStorage.rwSessions = JSON.stringify(all); } catch {} }
+function storeSessions(all) { store('rwSessions', JSON.stringify(all)); }
 
 let pending; // session waiting for the Jellyfin sign-in
 function openSession(s) {
@@ -844,8 +847,8 @@ function renderSessions() {
 }
 
 // --- UI state: panel open?, which tab?, controls collapsed? – stored in the browser ---
-const ui = (key, def) => { try { return localStorage['rwUi' + key] ?? def; } catch { return def; } };
-function setUi(key, v) { try { localStorage['rwUi' + key] = v; } catch {} }
+const ui = (key, def) => stored('rwUi' + key, def);
+function setUi(key, v) { store('rwUi' + key, v); }
 function setPanel(open, tab = ui('Tab', 'movie')) {
   document.body.classList.toggle('panel', open); setUi('Panel', open ? '1' : '');
   setUi('Tab', tab);
@@ -866,12 +869,14 @@ setPanel(!!ui('Panel', '1')); // open on the first visit
 let configServer = '';
 let jf = {}; // { server, token, userId, name }
 let deviceId = 'glotz3r';
-try {
-  jf = JSON.parse(localStorage.rwJf || '{}');
-  $('server').value = localStorage.jfServer || '';
-  deviceId = localStorage.rwDevice ||= crypto.randomUUID?.() ?? Math.random().toString(36).slice(2);
-} catch {}
-const base = () => (configServer || $('server').value).trim().replace(/\/*$/, '/');
+try { jf = JSON.parse(stored('rwJf', '{}')) || {}; } catch {}
+$('server').value = stored('jfServer');
+deviceId = stored('rwDevice') || (crypto.randomUUID?.() ?? Math.random().toString(36).slice(2));
+store('rwDevice', deviceId);
+const base = () => { // an address typed without a scheme (192.168.1.5:8096) means http
+  const s = (configServer || $('server').value).trim();
+  return (s && !/^https?:\/\//i.test(s) ? 'http://' + s : s).replace(/\/*$/, '/');
+};
 const loggedIn = () => !!jf.token && jf.server === base();
 
 // What this browser can play itself; Jellyfin transcodes everything else to H.264/AAC as HLS
@@ -912,7 +917,7 @@ async function api(path, opts = {}) {
 }
 function setLogin(auth) {
   jf = auth.AccessToken ? { server: base(), token: auth.AccessToken, userId: auth.User.Id, name: auth.User.Name } : {};
-  try { localStorage.rwJf = JSON.stringify(jf); } catch {}
+  store('rwJf', JSON.stringify(jf)); qcStop();
   renderLogin();
   if (loggedIn() && pending) { const s = pending; pending = null; openSession(s); }
 }
@@ -933,7 +938,7 @@ function renderLogin() {
     }
   }
 }
-$('server').onchange = () => { try { localStorage.jfServer = $('server').value.trim(); } catch {} renderLogin(); };
+$('server').onchange = () => { store('jfServer', $('server').value.trim()); renderLogin(); };
 
 $('jfLogin').onsubmit = async e => {
   e.preventDefault();
@@ -953,12 +958,16 @@ $('qc').onclick = async () => {
       .catch(() => api('QuickConnect/Initiate')); // Jellyfin < 10.9 expects GET
     msg('');
     $('qcCode').textContent = t('Code {0} – enter it in Jellyfin under Settings → Quick Connect', Code);
+    let busy = false; // a slow answer must not overlap with the next poll
     qcTimer = setInterval(async () => {
+      if (busy) return;
+      busy = true;
       try {
         if (!(await api(`QuickConnect/Connect?secret=${encodeURIComponent(Secret)}`)).Authenticated) return;
         qcStop();
         setLogin(await api('Users/AuthenticateWithQuickConnect', { method: 'POST', body: JSON.stringify({ Secret }) }));
       } catch (e) { qcStop(); msg(`Quick Connect: ${e.message}`); }
+      finally { busy = false; }
     }, 3000);
   } catch (e) { msg(`Quick Connect: ${e.message}`); }
 };

@@ -1,3 +1,3 @@
 module glotz3r
 
-go 1.22
+go 1.26
