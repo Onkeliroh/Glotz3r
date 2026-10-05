@@ -101,9 +101,11 @@
   .srcs label:has(:checked) { background: var(--accent); border-color: var(--accent); color: #1a1200; font-weight: 600; }
   .srcs input { position: absolute; opacity: 0; pointer-events: none; }
   fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
-  .jf .q, .yt { flex: 1; }
+  .jf .q, .yt, .bar[data-src=file] > input { flex: 1 1 100%; min-width: 0; }
+  .bar[data-src] { row-gap: 10px; }
+  .bar[data-src] > .hint { flex: 1; font-size: 12px; }
   #jfLogin { display: grid; gap: 8px; margin: 10px 0; }
-  .results span, #sessions span, .tree span { display: flex; gap: 6px; align-items: center; margin: 3px 0; }
+  .results span, .tree span { display: flex; gap: 6px; align-items: center; margin: 3px 0; }
   .results button, .tree button { padding: 1px 8px; flex: none; }
   .results:not(:empty) { padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid var(--line); }
   /* Jellyfin tree: nested <details>, content is loaded when a node is opened */
@@ -111,16 +113,25 @@
   .tree summary { cursor: pointer; padding: 4px 6px; border-radius: 6px; }
   .tree summary:hover { background: var(--ctl); }
   #sessions:empty::before { content: attr(data-empty); color: var(--dim); }
-  #sessions span { flex-wrap: wrap; padding: 8px 0; margin: 0; border-bottom: 1px solid var(--line); }
+  .sess { margin: 8px 0; padding: 10px 12px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
+  .sess > div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sess .r { font-weight: 600; }
+  .sess .m, .sess .meta { color: var(--dim); font-size: 12px; }
+  .sess .meta { margin-top: 2px; }
+  .sess .bar { margin: 10px 0 0; overflow: visible; }
 
   /* --- Stage --- */
   #stage { grid-area: stage; display: flex; gap: 4px; margin: 12px 12px 0; min-height: 0; background: #000; border-radius: 10px; overflow: hidden; position: relative; }
   #stage:fullscreen { height: 100%; margin: 0; border-radius: 0; }
   #movie { flex: 1; min-width: 0; height: 100%; }
-  #reaction { width: 30%; height: 100%; }
+  #reaction { width: var(--rs, 30%); height: 100%; } /* --rs: "Size" slider */
   #rvideo, #ytbox, #ytbox iframe { display: block; width: 100%; height: 100%; border: 0; }
   /* Layout templates: the reaction width always comes from the "Size" slider */
   #stage[data-layout="side-left"] #reaction { order: -1; }
+  #stage[data-layout^="stack"] { flex-direction: column; } /* top and bottom: the slider sets the reaction height */
+  #stage[data-layout^="stack"] #movie { height: auto; min-height: 0; }
+  #stage[data-layout^="stack"] #reaction { width: 100%; height: var(--rs, 30%); flex: none; }
+  #stage[data-layout="stack-top"] #reaction { order: -1; }
   #stage[data-layout^="pip"] { display: block; }
   #stage[data-layout^="pip"] #movie { display: block; width: 100%; } /* flex: 1 no longer applies here */
   #stage[data-layout^="pip"] #reaction { position: absolute; height: auto; aspect-ratio: 16 / 9; background: #000; border-radius: 8px; overflow: hidden; box-shadow: 0 0 0 1px #fff2, 0 6px 24px #000c; }
@@ -137,6 +148,9 @@
   #stage:fullscreen #fsExit { display: block; }
   #stage:fullscreen:not(.moving) #fsExit:not(:focus-visible) { opacity: 0; }
   #stage:fullscreen #rhidden { top: 52px; }
+  /* Fullscreen: the dock is moved into the stage (JS) and slides up while the pointer is near the bottom edge or a control has keyboard focus */
+  #stage > #dock { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; padding-top: 8px; background: #14161bf2; border-top: 1px solid var(--line); transform: translateY(100%); transition: transform .25s; }
+  #stage.showdock > #dock, #stage > #dock:has(:focus-visible) { transform: none; }
   #empty { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; color: var(--dim); background: radial-gradient(circle at 50% 40%, #1b1e26, #000 70%); }
   #empty b { font-size: 1.4em; color: var(--text); }
   #toast { position: absolute; top: 8%; left: 50%; transform: translateX(-50%); z-index: 3; padding: 8px 16px; background: #000c; border: 1px solid #555; border-radius: 10px; font-size: 1.2em; pointer-events: none; text-align: center; backdrop-filter: blur(6px); }
@@ -176,16 +190,44 @@
   .card.wide { flex: 2 1 460px; }
   .card h3 { margin: 0 0 6px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--dim); }
   .card .bar { margin: 6px 0 0; }
-  .card label { display: grid; grid-template-columns: 5.5em minmax(0, 1fr); margin-top: 4px; }
+  .card label { display: grid; grid-template-columns: 5.5em minmax(0, 1fr) 3.5em; column-gap: 6px; align-items: center; margin-top: 8px; }
+  .card label.stack { grid-template-columns: minmax(0, 1fr); row-gap: 4px; }
+  .card output { text-align: right; color: var(--dim); font-variant-numeric: tabular-nums; }
+  #hideR { flex: 1; }
+  /* "Movie starts now": large call to action until an offset is set (not yet pressed, or after Stop); then it moves into the offset card */
+  #startBar { display: none; margin: 8px 0; }
+  body.unmarked #startBar { display: flex; }
+  body.unmarked #restart { display: none; }
+  #startBar { row-gap: 4px; }
+  #startBar .hint { flex: 1 1 100%; text-align: center; font-size: 12px; }
+  #startNow { flex: 1 1 100%; padding: 12px 18px; font-size: 1.15em; animation: pulse 4s ease-in-out infinite; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 5px #ffb22440; } }
+  @media (prefers-reduced-motion: reduce) { #startNow { animation: none; } }
   .seg { display: inline-flex; }
   .seg button { border-radius: 0; margin-left: -1px; padding: 5px 8px; }
   .seg button:first-child { border-radius: 8px 0 0 8px; margin-left: 0; }
   .seg button:last-child { border-radius: 0 8px 8px 0; }
   #offset { width: 7.5em; text-align: center; font-variant-numeric: tabular-nums; font-size: 1.1em; }
+  /* Narrow offset card: value + "Movie starts now" on top, then each step group as its own full-width row */
+  .card.wide { container-type: inline-size; }
+  @container (max-width: 520px) {
+    #offset { order: -2; flex: 1; width: auto; min-width: 0; }
+    #restart { order: -1; }
+    .card .seg { flex: 1 1 100%; }
+    .card .seg button { flex: 1; }
+    .card .grow { display: none; }
+  }
 
   @media (max-width: 900px) { /* narrow: the panel overlays the stage instead of pushing it aside */
+    body:has(#stage[data-layout^="stack"]) { grid-template-rows: auto minmax(60vh, 1fr) auto; } /* the controls below leave little room on a phone */
     #setup { position: fixed; inset: 0 auto 0 0; z-index: 5; width: min(400px, 100vw); box-shadow: 8px 0 32px #000a; }
     .chip { max-width: 22vw; }
+  }
+  @media (max-width: 600px) { /* phone: brand, menu and icon buttons in one row, the two source chips in a second row */
+    header { flex-wrap: wrap; row-gap: 2px; }
+    .chip { order: 1; flex: 1 1 40%; max-width: none; }
+    #link, #help { font-size: 0; } /* icon only (title stays as tooltip) */
+    #link::before, #help::before { font-size: 16px; margin: 0; }
   }
 </style>
 </head>
@@ -326,6 +368,10 @@
     <button id="more" data-i="sliders" title="Show / hide controls for offset, volume and view" data-t>Controls</button>
     <button id="fs" class="icon" title="Fullscreen (F)"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
   </div>
+  <div id="startBar" class="bar">
+    <button id="startNow" data-i="clap" class="primary" title="Key R" data-t>Movie starts now</button>
+    <span class="hint" data-t>Rough: press “Movie starts now” as soon as the movie begins in the reaction.</span>
+  </div>
   <div id="panels">
     <section class="card wide">
       <h3 title="Offset = reaction time at which the movie is at 0:00" data-t>Offset (seconds)</h3>
@@ -345,21 +391,23 @@
     </section>
     <section class="card" id="volCard">
       <h3 data-t>Volume</h3>
-      <label><span data-t>Master</span> <input id="volMaster" type="range" min="0" max="1" step="0.05" value="1"></label>
-      <label><span data-t>Movie</span> <input id="volMovie" type="range" min="0" max="1" step="0.05" value="1"></label>
-      <label>Reaction <input id="volReaction" type="range" min="0" max="1" step="0.05" value="1"></label>
+      <label><span data-t>Master</span> <input id="volMaster" type="range" min="0" max="1" step="0.05" value="1"><output></output></label>
+      <label><span data-t>Movie</span> <input id="volMovie" type="range" min="0" max="1" step="0.05" value="1"><output></output></label>
+      <label>Reaction <input id="volReaction" type="range" min="0" max="1" step="0.05" value="1"><output></output></label>
     </section>
     <section class="card">
       <h3 data-t>View</h3>
-      <label>Layout <select id="layout" title="Key L">
+      <label class="stack">Layout <select id="layout" title="Key L">
         <option value="side" data-t>Side by side (reaction right)</option>
         <option value="side-left" data-t>Side by side (reaction left)</option>
+        <option value="stack" data-t>Top and bottom (reaction below)</option>
+        <option value="stack-top" data-t>Top and bottom (reaction above)</option>
         <option value="pip-br" data-t>Picture-in-picture bottom right</option>
         <option value="pip-bl" data-t>Picture-in-picture bottom left</option>
         <option value="pip-tr" data-t>Picture-in-picture top right</option>
         <option value="pip-tl" data-t>Picture-in-picture top left</option>
       </select></label>
-      <label><span data-t>Size</span> <input id="size" type="range" min="0" max="50" value="30"></label>
+      <label><span data-t>Size</span> <input id="size" type="range" min="0" max="50" value="30"><output>30 %</output></label>
       <div class="bar"><button id="hideR" data-i="eye" title="Key V">Hide reaction</button></div>
     </section>
   </div>
@@ -415,6 +463,7 @@ const I18N = { de: {
   'Rough: press “Movie starts now” as soon as the movie begins in the reaction.': 'Grob: „Film startet jetzt“ drücken, sobald der Film in der Reaction beginnt.',
   'Volume': 'Lautstärke', 'Master': 'Gesamt', 'View': 'Ansicht', 'Size': 'Größe',
   'Side by side (reaction right)': 'Nebeneinander (Reaction rechts)', 'Side by side (reaction left)': 'Nebeneinander (Reaction links)',
+  'Top and bottom (reaction below)': 'Übereinander (Reaction unten)', 'Top and bottom (reaction above)': 'Übereinander (Reaction oben)',
   'Picture-in-picture bottom right': 'Bild-in-Bild unten rechts', 'Picture-in-picture bottom left': 'Bild-in-Bild unten links',
   'Picture-in-picture top right': 'Bild-in-Bild oben rechts', 'Picture-in-picture top left': 'Bild-in-Bild oben links',
   'Show reaction': 'Reaction einblenden', 'Hide reaction': 'Reaction ausblenden',
@@ -499,7 +548,7 @@ const Y = {
     await ytApi();
     this.player ??= await new Promise(res => {
       const p = new YT.Player('yt', {
-        width: '100%', height: '100%', playerVars: { playsinline: 1, rel: 0 },
+        width: '100%', height: '100%', playerVars: { playsinline: 1, rel: 0, controls: 0, cc_load_policy: 0 },
         events: {
           onReady: () => res(p),
           onStateChange: e => this.onState(e.data),
@@ -512,6 +561,7 @@ const Y = {
   },
   onState(s) { // -1 unstarted, 0 ended, 1 playing, 2 paused, 3 buffering, 5 cued
     this.state = s;
+    if (s === 1) this.player.unloadModule?.('captions'); // ponytail: undocumented but long-stable; cc_load_policy alone does not override the account's caption setting
     this.clock = s === 1 ? this.player.getCurrentTime() - performance.now() / 1000 : null;
     const d = this.player.getVideoData?.(); // events of the previous video still arrive after a switch
     if (d?.title && d.video_id === cur.reaction?.yt) { cur.reaction.name = d.title; updateMeta(); showCurrent(); }
@@ -549,6 +599,7 @@ addEventListener('message', e => {
 // --- Sync ---
 let M = V; // master = reaction (continuous timeline; <video> or YouTube), the movie follows
 let offset = 0;
+let marked = false; // an offset is set for this reaction ("Movie starts now", nudge, typed or from a session); Stop and a new reaction reset it
 
 function sync(force) {
   if (S.seeking || !S.src) return;
@@ -595,12 +646,13 @@ setInterval(() => {
   if (!$('seek').matches(':active')) $('seek').value = M.currentTime;
   $('time').textContent = `${fmt(M.currentTime)} / ${fmt(dur)}`;
   document.body.classList.toggle('playing', !M.paused); // play/pause icon
+  document.body.classList.toggle('unmarked', !marked && !!cur.movie && !!cur.reaction); // large "Movie starts now"
   if (ms) ms.playbackState = M.paused ? 'paused' : 'playing'; // otherwise it counts as "paused" while the movie waits for the intro to end
 }, 100);
 $('seek').onchange = e => M.currentTime = +e.target.value;
 
 function setOffset(v) {
-  offset = Math.round(v * 1000) / 1000;
+  offset = Math.round(v * 1000) / 1000; marked = true;
   $('offset').value = offset.toFixed(3);
   correcting = true; // approach the new offset to within a few ms right away
   sync();
@@ -609,10 +661,10 @@ $('offset').onchange = e => setOffset(+e.target.value || 0);
 const nudge = d => { setOffset(offset + d); toast(`Offset ${offset.toFixed(3)} s`); };
 document.querySelectorAll('[data-d]').forEach(b => b.onclick = () => nudge(+b.dataset.d));
 const restart = () => { setOffset(M.currentTime); toast(`${t('Movie starts now')} · Offset ${offset.toFixed(3)} s`); }; // movie 0:00 = current reaction time
-$('restart').onclick = restart;
+$('restart').onclick = $('startNow').onclick = restart;
 
 const toggle = () => M.paused ? M.play().catch(playErr) : M.pause();
-const stop = () => { M.pause(); M.currentTime = 0; };
+const stop = () => { M.pause(); M.currentTime = 0; marked = false; };
 $('toggle').onclick = toggle;
 $('stop').onclick = stop;
 
@@ -633,17 +685,27 @@ const vols = ['volMaster', 'volMovie', 'volReaction'].map($);
 function applyVolume() {
   const [m, f, r] = vols.map(v => +v.value);
   S.volume = m * f; V.volume = Y.volume = m * r;
+  for (const v of vols) v.nextElementSibling.value = Math.round(v.value * 100) + ' %';
 }
 try { JSON.parse(stored('rwVol', '[]')).forEach((v, i) => { if (vols[i] && v >= 0 && v <= 1) vols[i].value = v; }); } catch {}
 for (const v of vols) v.oninput = () => { applyVolume(); store('rwVol', JSON.stringify(vols.map(v => +v.value))); };
 applyVolume();
-$('size').oninput = e => $('reaction').style.width = e.target.value + '%';
+$('size').oninput = e => { $('stage').style.setProperty('--rs', e.target.value + '%'); e.target.nextElementSibling.value = e.target.value + ' %'; };
 const fullscreen = () => document.fullscreenElement ? document.exitFullscreen() : $('stage').requestFullscreen();
 $('fs').onclick = $('fsExit').onclick = fullscreen;
 let moveTimer;
-$('stage').onpointermove = $('stage').onpointerdown = () => { // shows the exit button in fullscreen for a moment
+$('stage').onpointermove = $('stage').onpointerdown = e => { // shows the exit button in fullscreen for a moment; the dock while the pointer is near the bottom edge
   $('stage').classList.add('moving');
   clearTimeout(moveTimer); moveTimer = setTimeout(() => $('stage').classList.remove('moving'), 2500);
+  $('stage').classList.toggle('showdock', !!document.fullscreenElement && (e.clientY > innerHeight - 90 || !!e.target.closest('#dock')));
+};
+$('stage').onpointerleave = () => $('stage').classList.remove('showdock');
+document.onfullscreenchange = () => { // controls (play, volume, offset…) stay reachable: the dock lives inside the stage while it is fullscreen, in its compact form
+  const fs = !!document.fullscreenElement;
+  if (fs) $('stage').append($('dock')); else $('stage').after($('dock'));
+  document.body.classList.toggle('compact', fs || !!ui('Compact', ''));
+  document.body.classList.toggle('vol', fs || !!ui('Vol', ''));
+  $('stage').classList.remove('showdock');
 };
 const help = () => $('keys').hidden = !$('keys').hidden;
 $('help').onclick = $('keys').onclick = help;
@@ -666,6 +728,7 @@ const layouts = [...$('layout').options].map(o => o.value);
 const nextLayout = () => setLayout(layouts[(layouts.indexOf($('layout').value) + 1) % layouts.length]);
 $('layout').onchange = e => setLayout(e.target.value);
 if (layouts.includes(stored('rwLayout'))) setLayout(stored('rwLayout'));
+else if (matchMedia('(max-width: 600px)').matches) $('stage').dataset.layout = $('layout').value = 'stack'; // phone default, not stored
 
 document.addEventListener('keydown', e => {
   if (/text|number|select|password/.test(e.target.type) || e.ctrlKey || e.metaKey || e.altKey) return; // leave Ctrl+R, Ctrl+V etc. to the browser
@@ -718,7 +781,7 @@ let movieWanted = false; // the session's movie still has to be chosen by hand: 
 function loadMovie(item, src) { pending = null; movieWanted = false; cur.movie = item; msg(''); updateMeta(); showCurrent('movie'); setSource(S, item, src); }
 function loadReaction(item, src) { // a saved session for this reaction is applied automatically
   const s = sessions()[item.key];
-  movieWanted = false; pending = null; // a manual choice replaces a session that was waiting for the sign-in
+  movieWanted = false; pending = null; marked = false; // a manual choice replaces a session that was waiting for the sign-in
   // Property instead of a listener: a restore left over from a failed or superseded load must not hit this reaction
   V.onloadedmetadata = s && !item.yt ? () => { V.onloadedmetadata = null; V.currentTime = s.pos; } : null;
   M.pause();
@@ -875,12 +938,18 @@ function openLink() {
 function renderSessions() {
   const all = sessions();
   $('sessions').dataset.empty = t('None yet.');
-  $('sessions').replaceChildren(...Object.entries(all).sort((a, b) => b[1].at - a[1].at).map(([k, s]) => row(
-    btn(t('Resume'), () => openSession(s), 'play'),
-    btn('', () => copyLink(s), 'link'),
-    btn('✕', () => { const now = sessions(); delete now[k]; storeSessions(now); renderSessions(); }), // re-read: `all` is from render time
-    `${s.reaction.name} ↔ ${s.movie.name} · Offset ${s.offset.toFixed(3)} s · ${t('at')} ${fmt(s.pos)}`,
-  )));
+  const line = (cls, text) => { const d = document.createElement('div'); d.className = cls; d.textContent = text; d.title = text; return d; };
+  $('sessions').replaceChildren(...Object.entries(all).sort((a, b) => b[1].at - a[1].at).map(([k, s]) => {
+    const d = document.createElement('div'), acts = document.createElement('div');
+    d.className = 'sess'; acts.className = 'bar';
+    acts.append(
+      btn(t('Resume'), () => openSession(s), 'play'),
+      btn('', () => copyLink(s), 'link'),
+      btn('✕', () => { const now = sessions(); delete now[k]; storeSessions(now); renderSessions(); }), // re-read: `all` is from render time
+    );
+    d.append(line('r', s.reaction.name), line('m', `↔ ${s.movie.name}`), line('meta', `Offset ${s.offset.toFixed(3)} s · ${t('at')} ${fmt(s.pos)}`), acts);
+    return d;
+  }));
 }
 
 // --- UI state: panel open?, which tab?, controls collapsed? – stored in the browser ---
