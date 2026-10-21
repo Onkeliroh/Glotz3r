@@ -42,6 +42,7 @@
   [data-i]::before { content: ''; display: inline-block; width: 1.15em; height: 1.15em; margin-right: 6px; vertical-align: -.22em; background: currentColor; -webkit-mask: var(--i) center / contain no-repeat; mask: var(--i) center / contain no-repeat; }
   [data-i=clap] { --i: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11h18v9H3zM3 11l-.8-3.8 15.5-4 1 3.8zM7 6.2l2.5 3.6M12 4.9l2.5 3.6"/></svg>'); }
   [data-i=wave] { --i: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v4M8 6v12M12 3v18M16 7v10M20 10v4"/></svg>'); }
+  [data-i=people] { --i: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>'); }
   [data-i=crop] { --i: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v14a2 2 0 0 0 2 2h14M2 6h14a2 2 0 0 1 2 2v14"/></svg>'); }
   [data-i=link] { --i: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>'); }
   [data-i=keys] { --i: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg>'); }
@@ -199,7 +200,7 @@
   /* "Movie starts now": large call to action until an offset is set (not yet pressed, or after Stop); then it moves into the offset card */
   #startBar { display: none; margin: 8px 0; }
   body.unmarked #startBar { display: flex; }
-  body.unmarked #restart { display: none; }
+  body.unmarked #restart, body.unmarked .card .autoSync, body.unmarked .card .pickBtn, body.unmarked .card .rough { display: none; } /* the start bar offers the same */
   #startBar { row-gap: 4px; }
   #startBar .hint { flex: 1 1 100%; text-align: center; font-size: 12px; }
   .autoSync.on { border-color: var(--accent); }
@@ -220,9 +221,18 @@
   .seg button:first-child { border-radius: 8px 0 0 8px; margin-left: 0; }
   .seg button:last-child { border-radius: 0 8px 8px 0; }
   #offset { width: 7.5em; text-align: center; font-variant-numeric: tabular-nums; font-size: 1.1em; }
-  /* Narrow offset card: value + "Movie starts now" on top, then each step group as its own full-width row */
+  #fpsCopy, #fpsFilm { width: 5.5em; text-align: center; font-variant-numeric: tabular-nums; }
+  #fpsBar label { display: inline-flex; grid-template-columns: none; margin: 0; white-space: nowrap; color: var(--dim); } /* not the card's slider rows */
+  #fpsBar > span:first-child { white-space: nowrap; }
+  #fpsBar { margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--line); }
+  #fpsNote { font-variant-numeric: tabular-nums; }
+  #fpsBar .hint { flex: 1 1 14em; font-size: 12px; }
+  #found { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 4; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; width: max-content; max-width: min(94%, 700px); padding: 10px 8px 10px 14px; background: #1b1e26f2; border: 1px solid #555; border-left: 3px solid var(--accent); border-radius: 10px; box-shadow: 0 6px 24px #000a; }
+  #found .bar { margin: 0; }
+  /* Offset card: the value always sits between its − and + steps; the steps get tighter first and only a phone-wide card stacks them */
   .card.wide { container-type: inline-size; }
-  @container (max-width: 520px) {
+  @container (max-width: 530px) { .seg button { padding-inline: 4px; } }
+  @container (max-width: 450px) {
     #offset { order: -2; flex: 1; width: auto; min-width: 0; }
     #restart { order: -1; }
     .card .seg { flex: 1 1 100%; }
@@ -346,6 +356,7 @@
   <button id="rhidden" hidden title="Reaction picture hidden, audio keeps playing – click or press V to show it"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4" height="6" rx="1"/><rect x="17" y="14" width="4" height="6" rx="1"/></svg></button>
   <button id="fsExit" data-i="exit" data-t>Exit fullscreen</button>
   <div id="toast" hidden></div>
+  <div id="found" hidden role="status"><span id="foundText"></span><span class="bar"><button id="foundStart" class="primary" data-i="people" title="From the beginning of the reaction: play it from 0:00, the movie joins on time at its offset" data-t>From the beginning of the reaction</button><button id="foundSkip" class="primary" data-i="clap" title="Skip to the movie start: jump to a few seconds before the movie starts and play" data-t>Skip to the movie start</button><button id="foundHere" data-t>Continue here</button></span><button id="foundClose" class="flat" title="Close">✕</button></div>
   <div id="msg" hidden><span id="msgText"></span><button id="msgClose" class="flat" title="Dismiss message">✕</button></div>
   <div id="drop" hidden>
     <div data-as="movie" data-t>Drop movie here<small>video file</small></div>
@@ -403,7 +414,20 @@
       <div class="bar hint">
         <span data-t><b>−</b> if your movie is <b>behind</b> (the reaction audio comes first)</span>
         <span data-t><b>+</b> if your movie is <b>ahead</b> (your audio comes first)</span>
-        <span data-t>Rough: press “Movie starts now” as soon as the movie begins in the reaction.</span>
+        <span class="rough" data-t>Rough: press “Movie starts now” as soon as the movie begins in the reaction.</span>
+      </div>
+      <div class="bar" id="fpsBar">
+        <span title="Movie time = (reaction time − offset) × frame rate of the film ÷ frame rate of the copy" data-t>Frame rate</span>
+        <label><span data-t>of my copy</span> <input id="fpsCopy" type="number" step="any" min="10" max="120" value="24" list="fpsList"></label>
+        <label><span data-t>of the film in the reaction</span> <input id="fpsFilm" type="number" step="any" min="10" max="120" value="24" list="fpsList"></label>
+        <datalist id="fpsList"><option value="23.976"><option value="24"><option value="25"><option value="29.97"><option value="30"></datalist>
+        <span id="fpsNote"></span>
+        <span class="hint" data-t>A television copy at 25 fps of a film at 24 fps runs 4 % too fast: enter both and the speed is adjusted.</span>
+      </div>
+      <div class="bar" id="watchBar">
+        <span data-t>Watch</span>
+        <button id="fromStart" class="icon" data-i="people" title="From the beginning of the reaction: play it from 0:00, the movie joins on time at its offset"></button>
+        <button id="toMovie" class="icon" data-i="clap" title="Skip to the movie start: jump to a few seconds before the movie starts and play"></button>
       </div>
     </section>
     <section class="card" id="volCard">
@@ -496,8 +520,15 @@ const I18N = { de: {
   'The browser does not allow reading this video’s pictures.': 'Der Browser erlaubt kein Auslesen der Bilder dieses Videos.',
   'Choose a movie and a reaction first.': 'Bitte zuerst Film und Reaction wählen.',
   'Movie start found: offset {0} s': 'Filmstart gefunden: Offset {0} s',
-  'The movie runs about {0} % faster than in the reaction, so the offset only fits at the start.': 'Der Film läuft etwa {0} % schneller als in der Reaction, der Offset passt deshalb nur am Anfang.',
-  'The movie runs about {0} % slower than in the reaction, so the offset only fits at the start.': 'Der Film läuft etwa {0} % langsamer als in der Reaction, der Offset passt deshalb nur am Anfang.',
+  'The movie runs about {0} % faster than in the reaction (copy {1} fps, film {2} fps): its speed was adjusted.': 'Der Film läuft etwa {0} % schneller als in der Reaction (Kopie {1} fps, Film {2} fps): seine Geschwindigkeit wurde angepasst.',
+  'The movie runs about {0} % slower than in the reaction (copy {1} fps, film {2} fps): its speed was adjusted.': 'Der Film läuft etwa {0} % langsamer als in der Reaction (Kopie {1} fps, Film {2} fps): seine Geschwindigkeit wurde angepasst.',
+  'How do you want to watch?': 'Wie möchtest du schauen?', 'Set the offset first (“Movie starts now” or the automatic detection).': 'Bitte zuerst den Offset setzen („Film startet jetzt“ oder die automatische Erkennung).',
+  'From the beginning of the reaction': 'Von Anfang der Reaction', 'Skip to the movie start': 'Zum Filmstart springen', 'Continue here': 'Hier weiter', 'Watch': 'Schauen',
+  'From the beginning of the reaction: play it from 0:00, the movie joins on time at its offset': 'Von Anfang der Reaction: ab 0:00 abspielen, der Film setzt pünktlich beim Offset ein',
+  'Skip to the movie start: jump to a few seconds before the movie starts and play': 'Zum Filmstart springen: einige Sekunden vor dem Filmstart anfangen und abspielen',
+  'Frame rate': 'Bildrate', 'of my copy': 'meiner Kopie', 'of the film in the reaction': 'des Films in der Reaction',
+  'Movie time = (reaction time − offset) × frame rate of the film ÷ frame rate of the copy': 'Filmzeit = (Reaktionszeit − Offset) × Bildrate des Films ÷ Bildrate der Kopie',
+  'A television copy at 25 fps of a film at 24 fps runs 4 % too fast: enter both and the speed is adjusted.': 'Eine Fernsehkopie mit 25 fps eines Films mit 24 fps läuft 4 % zu schnell: beide eintragen, dann wird die Geschwindigkeit angepasst.',
   'No movie start found in the reaction’s sound. Set it by hand with “Movie starts now”.': 'Kein Filmstart im Ton der Reaction gefunden. Bitte von Hand mit „Film startet jetzt“ setzen.',
   'This browser cannot read video frames.': 'Dieser Browser kann keine Videobilder auslesen.',
   'No movie start found in the reaction between {0} and {1}. Put the progress bar a little before the movie starts, mark where the movie’s picture is (“Mark movie picture”) or set it by hand with “Movie starts now”.': 'Kein Filmstart in der Reaction zwischen {0} und {1} gefunden. Den Fortschrittsbalken etwas vor den Filmstart setzen, das Filmbild markieren („Filmbild markieren“) oder von Hand mit „Film startet jetzt“ setzen.',
@@ -648,16 +679,24 @@ addEventListener('message', e => {
 
 // --- Sync ---
 let M = V; // master = reaction (continuous timeline; <video> or YouTube), the movie follows
-let offset = 0;
+let offset = 0, tempo = 1, fps = [24, 24]; // frame rate of my copy, of the film in the reaction; the movie's time is (reaction time − offset) × tempo, tempo = film ÷ copy (25 fps copy of a 24 fps film: 0.96)
+const START_LEAD = 5; // s of the reaction shown before the movie starts when skipping to it
 let auto = null; // running automatic detection: sync() stays out of the way
 let marked = false; // an offset is set for this reaction ("Movie starts now", nudge, typed or from a session); Stop and a new reaction reset it
 
 function sync(force) {
   if (S.seeking || !S.src || auto) return;
-  const t = M.currentTime - offset;
+  const t = (M.currentTime - offset) * tempo;
   if (t < 0 || t > (S.duration || Infinity)) { // movie not started yet / already over
-    S.pause();
-    if (t < 0 && S.currentTime) S.currentTime = 0;
+    clearTimeout(startTimer);
+    const wait = offset - M.currentTime; // reaction seconds until the movie starts
+    if (t < 0 && !M.paused && wait < startLatency) { // the movie needs a moment to get going: start it just before, so that it is on time
+      if (S.paused) { playCallAt = performance.now(); S.play().catch(playErr); }
+    } else {
+      S.pause();
+      if (t < 0 && S.currentTime) S.currentTime = 0;
+      if (t < 0 && !M.paused && wait < 1) startTimer = setTimeout(sync, Math.max(0, (wait - startLatency) * 1000));
+    }
     return;
   }
   const drift = S.currentTime - t, abs = Math.abs(drift); // drift > 0: the movie is ahead
@@ -668,17 +707,18 @@ function sync(force) {
     seekAt = performance.now();
     S.currentTime = t + (M.paused ? 0 : lead);
     correcting = true;
-    setRate(1);
+    setRate(tempo);
   } else if (!M.paused && S.readyState >= 3) {
     // Change the rate rarely and in fixed steps: every change disturbs the movie's audio output.
     // Correction starts above 40 ms (or after an offset change/seek) and ends below 5 ms.
     if (abs > 0.04) correcting = true;
     if (abs < 0.005) correcting = false;
-    setRate(correcting ? 1 - Math.sign(drift) * (abs > 0.1 ? 0.08 : 0.03) : 1);
+    setRate(correcting ? tempo * (1 - Math.sign(drift) * (abs > 0.1 ? 0.08 : 0.03)) : tempo);
   }
   if (M.paused) S.pause(); else if (S.paused) S.play().catch(playErr);
 }
-let correcting = true, lead = 0, seekAt = 0;
+let correcting = true, lead = 0, seekAt = 0, startTimer = 0, startLatency = 0.1, playCallAt = 0; // startLatency: s from play() until the movie runs
+S.addEventListener('playing', () => { if (playCallAt) startLatency = Math.min(0.4, Math.max(0.03, (startLatency + (performance.now() - playCallAt) / 1000) / 2)); playCallAt = 0; });
 const playErr = e => e.name === 'AbortError' || msg(e.message); // AbortError: our own pause()/load interrupted a pending play()
 const setRate = r => { if (S.playbackRate !== r) S.playbackRate = r; };
 S.addEventListener('seeked', () => { if (seekAt) lead = Math.min(3, (performance.now() - seekAt) / 1000); seekAt = 0; });
@@ -693,7 +733,7 @@ setInterval(() => {
   const pct = v => Math.min(100, Math.max(0, v / dur * 100)) + '%';
   $('spans').hidden = !dur;
   $('spans').style.setProperty('--a', pct(offset));
-  $('spans').style.setProperty('--b', pct(S.duration ? offset + S.duration : offset));
+  $('spans').style.setProperty('--b', pct(S.duration ? offset + S.duration / tempo : offset));
   if (!$('seek').matches(':active')) $('seek').value = M.currentTime;
   $('time').textContent = `${fmt(M.currentTime)} / ${fmt(dur)}`;
   document.body.classList.toggle('playing', !M.paused); // play/pause icon
@@ -709,6 +749,31 @@ function setOffset(v) {
   sync();
 }
 $('offset').onchange = e => setOffset(+e.target.value || 0);
+const fpsOk = v => Number.isFinite(+v) && +v >= 10 && +v <= 120;
+function setFps(copy, film) { // both frame rates; the pair has to give a plausible speed, otherwise 24 / 24
+  fps = fpsOk(copy) && fpsOk(film) && film / copy >= 0.8 && film / copy <= 1.25 ? [+copy, +film] : [24, 24];
+  tempo = fps[1] / fps[0];
+  $('fpsCopy').value = fps[0]; $('fpsFilm').value = fps[1];
+  $('fpsNote').textContent = tempo === 1 ? '' : `× ${tempo.toFixed(3)}`;
+  correcting = true;
+  sync();
+}
+$('fpsCopy').onchange = $('fpsFilm').onchange = () => setFps($('fpsCopy').value, $('fpsFilm').value);
+// After the offset is known: watch the reaction from its beginning (the movie joins on time at the offset) or skip the chatter before the movie
+function watchFrom(where) {
+  $('found').hidden = true;
+  if (!cur.reaction || !cur.movie) return;
+  if (where === 'start') M.currentTime = 0;
+  else if (where === 'movie') {
+    if (!marked) return msg(t('Set the offset first (“Movie starts now” or the automatic detection).'));
+    M.currentTime = Math.max(0, offset - START_LEAD);
+  }
+  if (M.paused) M.play().catch(playErr);
+}
+$('fromStart').onclick = $('foundStart').onclick = () => watchFrom('start');
+$('toMovie').onclick = $('foundSkip').onclick = () => watchFrom('movie');
+$('foundHere').onclick = () => watchFrom();
+$('foundClose').onclick = () => $('found').hidden = true;
 const nudge = d => { setOffset(offset + d); toast(`Offset ${offset.toFixed(3)} s`); };
 document.querySelectorAll('[data-d]').forEach(b => b.onclick = () => nudge(+b.dataset.d));
 const restart = () => { setOffset(M.currentTime); toast(`${t('Movie starts now')} · Offset ${offset.toFixed(3)} s`); }; // movie 0:00 = current reaction time
@@ -1003,8 +1068,9 @@ function picScan(ms, rs, user) { // The marked rectangle (in rs's coordinates) i
   if (!top || top.best.v < 0) return null;
   const rival = Math.max(0, ...top.vals[top.best.drift].filter(([o]) => Math.abs(o - top.best.off) > 3).map(([, v]) => v));
   let fine = { v: -1 };
-  for (const dd of top.best.drift ? [-0.01, -0.0075, -0.005, -0.0025, 0, 0.0025, 0.005, 0.0075, 0.01] : [0]) for (let o = -1; o <= 1.0001; o += 0.1) { // finer, then a parabola through the peak gets below the frame spacing
-    const drift = top.best.drift + dd, v = score(top, frames(top.best.off + o, drift));
+  const drift = top.best.drift; // exactly the frame rate ratio: a free drift would only add noise to the offset
+  for (let o = -1; o <= 1.0001; o += 0.05) { // finer, then a parabola through the peak gets below the frame spacing
+    const v = score(top, frames(top.best.off + o, drift));
     if (v > fine.v) fine = { v, off: top.best.off + o, drift };
   }
   const row = [-0.05, 0, 0.05].map(e => score(top, frames(fine.off + e, fine.drift)));
@@ -1058,7 +1124,7 @@ async function watchForPicture(a) {
     const win = { t: rs.t.slice(i0), f: rs.f.slice(i0), w: rs.w, h: rs.h };
     const n = crop && picNearest(ms.t, PIC_HINT_HEAD) + 1; // the movie's first 90 s: a longer stretch only invites a drift (a copy at 25 instead of 24 pictures per second)
     const r = crop ? picScan({ t: ms.t.slice(0, n), f: ms.f.slice(0, n) }, win, user) : picLocate(ms, win, S.videoWidth / S.videoHeight);
-    const ok = r && (crop ? r.v >= 0.3 && r.margin >= 0.15 : r.v >= 0.55); // a known rectangle needs less: it cannot match elsewhere in the picture by chance
+    const ok = r && (crop ? r.v >= 0.3 && r.margin >= 0.15 && win.t.at(-1) - r.off >= PIC_HINT_HEAD - 5 : r.v >= 0.55); // the whole head has to be in the reaction, else a drift cannot be told from an offset // a known rectangle needs less: it cannot match elsewhere in the picture by chance
     if (ok && prev != null && Math.abs(r.off - prev) < 0.15) { a.drift = r.drift; return r.off; } // the same position twice in a row
     prev = ok ? r.off : null;
   }
@@ -1068,13 +1134,21 @@ async function autoSync() {
   if (auto) return void (auto.cancel = true);
   if (!cur.movie || !cur.reaction) return msg(t('Choose a movie and a reaction first.'));
   const a = auto = { cancel: false, undo: [] };
+  $('found').hidden = true;
   autoUi(true);
   try {
     const off = await (M === Y ? listenForMovie(a) : watchForPicture(a));
     if (off != null) {
       setOffset(off);
-      toast(t('Movie start found: offset {0} s', off.toFixed(3)));
-      if (Math.abs(a.drift) > 0.02) msg(t(a.drift > 0 ? 'The movie runs about {0} % faster than in the reaction, so the offset only fits at the start.' : 'The movie runs about {0} % slower than in the reaction, so the offset only fits at the start.', Math.abs(a.drift * 100).toFixed(1))); // e.g. a copy at 25 instead of 24 pictures per second
+      let text = t('Movie start found: offset {0} s', off.toFixed(3)) + '.';
+      if (a.drift !== undefined) { // a copy at the television's 25 instead of the film's 24 pictures per second runs 4.17 % faster; the estimate itself is only good to about 0.3 %
+        const d = Math.abs(a.drift) > 0.02 ? [25 / 24 - 1, 24 / 25 - 1].find(k => Math.abs(k - a.drift) < 0.007) ?? a.drift : 0;
+        setFps(...(d > 0 ? [24 * (1 + d), 24] : [24, 24 / (1 + d)]).map(v => +v.toFixed(3)));
+        if (d) text += ' ' + t(d > 0 ? 'The movie runs about {0} % faster than in the reaction (copy {1} fps, film {2} fps): its speed was adjusted.' : 'The movie runs about {0} % slower than in the reaction (copy {1} fps, film {2} fps): its speed was adjusted.', Math.abs(d * 100).toFixed(1), +fps[0].toFixed(3), fps[1]);
+      }
+      M.pause(); // the reaction must not run on before the choice
+      $('foundText').textContent = text + ' ' + t('How do you want to watch?');
+      $('found').hidden = false;
     }
   } catch (e) {
     msg(t('Detection not possible: {0}', e.name === 'NotAllowedError' ? t('the screen share was declined or blocked.') : e.message || e.name));
@@ -1294,6 +1368,7 @@ function loadReaction(item, src) { // a saved session for this reaction is appli
   } else {
     setSource(V, item, src);
   }
+  setFps(...(s?.fps ?? [24, 24]));
   if (!s) return;
   setOffset(s.offset);
   if (cur.movie?.key === s.movie.key) return;
@@ -1365,7 +1440,7 @@ function sessions() { // stored data is not trusted: broken entries are dropped,
     const all = JSON.parse(stored('rwSessions', '{}'));
     for (const [k, s] of Object.entries(all)) {
       if (!s?.reaction?.key || !s.movie?.key) delete all[k];
-      else { s.offset = +s.offset || 0; s.pos = +s.pos || 0; s.rect = Array.isArray(s.rect) && s.rect.length === 4 && s.rect.every(v => v >= 0 && v <= 1) ? s.rect.map(Number) : s.rect === false ? false : null; }
+      else { s.offset = +s.offset || 0; s.pos = +s.pos || 0; s.fps = Array.isArray(s.fps) && s.fps.length === 2 && s.fps.every(fpsOk) && s.fps[1] / s.fps[0] >= 0.8 && s.fps[1] / s.fps[0] <= 1.25 ? s.fps.map(Number) : [24, 24]; s.rect = Array.isArray(s.rect) && s.rect.length === 4 && s.rect.every(v => v >= 0 && v <= 1) ? s.rect.map(Number) : s.rect === false ? false : null; }
     }
     return all;
   } catch { return {}; }
@@ -1383,7 +1458,7 @@ function openSession(s) {
   if (r.yt || r.id) loadReaction(r);
   else msg(t('Please choose the reaction file “{0}” – offset & position are then applied.', r.name));
 }
-const current = () => ({ movie: cur.movie, reaction: cur.reaction, offset, pos: M.currentTime, rect: picRect, at: Date.now() });
+const current = () => ({ movie: cur.movie, reaction: cur.reaction, offset, fps, pos: M.currentTime, rect: picRect, at: Date.now() });
 setInterval(() => { // autosave: offset + position per reaction
   if (!cur.movie || !cur.reaction || movieWanted || M.readyState < 1 || M.seeking) return;
   const all = sessions(), isNew = !all[cur.reaction.key];
@@ -1396,6 +1471,7 @@ setInterval(() => { // autosave: offset + position per reaction
 function sessionLink(s) {
   const p = new URLSearchParams({ m: s.movie.key, mn: s.movie.name, r: s.reaction.key, rn: s.reaction.name, o: s.offset, t: s.pos.toFixed(1) });
   if ((s.movie.id || s.reaction.id) && base() !== '/') p.set('s', base());
+  if (s.fps && s.fps[0] !== s.fps[1]) p.set('f', s.fps.join(','));
   if (s.rect !== null) p.set('x', s.rect ? s.rect.map(v => v.toFixed(4)).join(',') : '0'); // the movie's picture in the reaction; 0 = search the whole picture
   return `${location.href.split('#')[0]}#${p}`;
 }
@@ -1420,7 +1496,7 @@ function openLink() {
   if (!movie || !reaction) return msg(t('Session link is invalid.'));
   const num = v => Number.isFinite(+v) ? +v : 0;
   const x = (p.get('x') || '').split(',').map(Number); // untrusted: four fractions, or 0
-  const s = { movie, reaction, offset: num(p.get('o')), pos: Math.max(0, num(p.get('t'))), rect: x.length === 4 && x.every(v => v >= 0 && v <= 1) ? x : p.get('x') === '0' ? false : null, at: Date.now() };
+  const s = { movie, reaction, offset: num(p.get('o')), fps: (f => f.length === 2 && f.every(fpsOk) && f[1] / f[0] >= 0.8 && f[1] / f[0] <= 1.25 ? f : [24, 24])((p.get('f') || '').split(',').map(Number)), pos: Math.max(0, num(p.get('t'))), rect: x.length === 4 && x.every(v => v >= 0 && v <= 1) ? x : p.get('x') === '0' ? false : null, at: Date.now() };
   const all = sessions(); all[reaction.key] = s; storeSessions(all);
   renderSessions();
   // Server address from the link (untrusted input): http(s) only, only for Jellyfin sources, only when not signed in,
@@ -1449,7 +1525,7 @@ function renderSessions() {
       btn('', () => copyLink(s), 'link'),
       btn('✕', () => { const now = sessions(); delete now[k]; storeSessions(now); renderSessions(); }), // re-read: `all` is from render time
     );
-    d.append(line('r', s.reaction.name), line('m', `↔ ${s.movie.name}`), line('meta', `Offset ${s.offset.toFixed(3)} s · ${t('at')} ${fmt(s.pos)}`), acts);
+    d.append(line('r', s.reaction.name), line('m', `↔ ${s.movie.name}`), line('meta', `Offset ${s.offset.toFixed(3)} s${s.fps[0] !== s.fps[1] ? ` · ${s.fps[0]} → ${s.fps[1]} fps` : ''} · ${t('at')} ${fmt(s.pos)}`), acts);
     return d;
   }));
 }
