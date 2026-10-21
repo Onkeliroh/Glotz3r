@@ -1,4 +1,4 @@
-# Glotz3r
+# GL00TZR
 
 *Spectatorem spectantem specta* – watch the watcher watching.
 
@@ -6,7 +6,7 @@ Watch reaction videos in sync with your own movie or series. The reaction sets t
 
 **▶ Try it right now: [onkeliroh.github.io/Glotz3r](https://onkeliroh.github.io/Glotz3r/)** – nothing to download or install. (The hosted page is served via https, so it only reaches a Jellyfin server that is available via https as well; for an http-only Jellyfin use the [executable](#download).)
 
-![Glotz3r with a movie and a reaction side by side, the sessions panel on the left and the offset, volume and view controls below](docs/screenshot.png)
+![GL00TZR with a movie and a reaction side by side, the sessions panel on the left and the offset, volume and view controls below](docs/screenshot.png)
 
 The whole application is a single web page ([web/index.html](web/index.html)). A small executable serves it locally and opens it in the browser.
 
@@ -24,7 +24,7 @@ You need [Go](https://go.dev/dl/). Build:
 go build -ldflags "-s -w" -o glotz3r.exe .
 ```
 
-Then start `glotz3r.exe` with a double click. The page opens in the browser at `http://127.0.0.1:8097`. Closing the console window stops Glotz3r.
+Then start `glotz3r.exe` with a double click. The page opens in the browser at `http://127.0.0.1:8097`. Closing the console window stops GL00TZR.
 
 `web/index.html` is embedded into the executable at build time, so rebuild after changing the page. If the old version is still running during the build, it is left behind as `glotz3r.exe~` and can be deleted once it is closed.
 
@@ -54,7 +54,7 @@ go run .
 
 ### Without the Go server
 
-The Go executable is not a requirement. It only exists because I was too lazy to deploy the page on another server. Glotz3r is a static page, so there are two other ways to run it:
+The Go executable is not a requirement. It only exists because I was too lazy to deploy the page on another server. GL00TZR is a static page, so there are two other ways to run it:
 
 - **Any web server** (nginx or similar): serve the contents of `web/`. Installing it as an app works there too. Only `config.json` normally comes from the Go server; it is optional, and a file with `{"jellyfin": "https://…"}` presets the Jellyfin address.
 - **No server at all:** open [web/index.html](web/index.html) directly in the browser. This works without installing it as an app (PWA), and YouTube reactions are not available because YouTube embedding needs http/https.
@@ -64,6 +64,9 @@ The Go executable is not a requirement. It only exists because I was too lazy to
 1. Open the **Menu** on the left and, if you use Jellyfin, sign in to Jellyfin on the settings tab (gear icon) with your password or Quick Connect.
 2. Choose one source each on the **Movie** and **Reaction** tabs. The header shows what is loaded.
 3. Play the reaction. As soon as the person in the video starts their movie, press **Movie starts now** (key `R`). This sets the offset.
+   Or let GL00TZR find it: **Detect movie start automatically** (key `A`). Put the progress bar a little before the point where the movie starts (anywhere in the video, e.g. for the second episode), then press it. It looks about six minutes of the reaction ahead of the bar and shows the progress in percent; with a small picture it usually needs one to two minutes after the movie has started in the reaction. For a reaction file, GL00TZR plays both videos muted at double speed and looks for the movie's picture in the reaction's picture (small, blurred or with a watermark is fine, a very small or heavily covered picture is not found) and sets the offset to within a few frames. If nothing is found with enough certainty, it says so; set the offset by hand then.
+   For a new reaction file GL00TZR asks where the movie is in the reaction: move to a moment where its picture is visible and drag a frame around it (button **Mark movie picture** to do it later or again). The frame is remembered per reaction, and the detection then only looks there, which also finds small, dark, blurred or heavily covered pictures. It compares how the picture changes (cuts, fades, movement), so a fixed overlay such as “sync your copy now” or a timecode does not matter. It does not have to be exact (about 15 % too large, too small or shifted is fine), but a frame that is clearly off is not found. The offset is the one that fits the movie's content, even if your copy has a different intro (logos) than the reaction's. If your copy runs faster or slower than the reaction's (typically 4 % for a television copy at 25 instead of 24 pictures per second), GL00TZR says so: the offset then fits the start and drifts later. **Search the whole picture** skips it.
+   A YouTube reaction gives no access to its pictures. There it listens to the sound instead (the original sound of the movie has to be audible in the reaction), which needs a Chromium browser that asks to share this tab with its audio.
 4. Fine-tune the offset if needed: **−** if your movie is behind, **+** if it is ahead.
 
 The browser remembers whether the panel is open, which tab is selected and whether the controls below the video are collapsed (**Controls** button).
@@ -103,7 +106,7 @@ English and German, switchable on the settings tab (gear icon) of the menu; the 
 
 ## Install as an app (no need to start the server)
 
-Glotz3r can be installed as an app (PWA). It then starts like a program of its own from the start menu, even when the `.exe` is not running:
+GL00TZR can be installed as an app (PWA). It then starts like a program of its own from the start menu, even when the `.exe` is not running:
 
 1. Start the `.exe` once and open the page in Chrome or Edge.
 2. In the menu under settings (gear icon) press **Install as app**, or use the install icon in the address bar.
