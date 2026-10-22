@@ -1216,11 +1216,12 @@ async function listenForMovie(a) {
 let picRect = null; // [x0, y0, x1, y1] as fractions of the reaction's picture · false: search the whole picture · null: not asked yet
 const pickBox = $('pickBox'), pickSel = $('pickSel');
 let pickR = null, pickFrom = null; // the frame being drawn
+let pickV = null; // the dialog's own video on the reaction's source: moving it must not move the reaction in the main window
 function pickDraw() {
   const c = $('pickCanvas');
-  try { c.getContext('2d').drawImage(V, 0, 0, c.width, c.height); c.getContext('2d').getImageData(0, 0, 1, 1); }
+  try { c.getContext('2d').drawImage(pickV, 0, 0, c.width, c.height); c.getContext('2d').getImageData(0, 0, 1, 1); }
   catch { $('pickDlg').close(); msg(t('The browser does not allow reading this video’s pictures.')); } // no CORS
-  $('pickTime').textContent = fmt(V.currentTime);
+  $('pickTime').textContent = fmt(pickV.currentTime);
 }
 function pickShow(r) {
   pickR = r; pickSel.hidden = !r; $('pickUse').disabled = !r;
@@ -1230,13 +1231,24 @@ function pickOpen() {
   if (!cur.reaction) return msg(t('Choose a reaction first.'));
   if (M === Y) return msg(t('Not possible for YouTube: its pictures cannot be read.'));
   if (!V.videoWidth) return msg(t('The reaction is not loaded yet.'));
+  if (!V._src) return msg(t('The reaction is not loaded yet.'));
   M.pause();
-  const c = $('pickCanvas');
+  const c = $('pickCanvas'), start = V.currentTime, { url, hls } = V._src;
   c.width = Math.min(960, V.videoWidth); c.height = Math.round(c.width * V.videoHeight / V.videoWidth);
-  $('pickSeek').max = V.duration || 0; $('pickSeek').value = V.currentTime;
+  $('pickSeek').max = V.duration || 0; $('pickSeek').value = start;
   pickShow(picRect || null);
-  $('pickDlg').showModal(); pickDraw();
+  const pv = pickV = Object.assign(document.createElement('video'), { muted: true, preload: 'auto' });
+  if (V.crossOrigin) pv.crossOrigin = V.crossOrigin;
+  pv.onloadedmetadata = () => { if (start) pv.currentTime = start; };
+  pv.onloadeddata = pv.onseeked = () => $('pickDlg').open && pickDraw();
+  if (hls && window.MediaSource) { pv._hls = new Hls({ startPosition: start || -1 }); pv._hls.loadSource(url); pv._hls.attachMedia(pv); } // hls.js is loaded: the reaction itself uses it
+  else pv.src = url;
+  $('pickDlg').showModal();
 }
+$('pickDlg').onclose = () => { // release the second video (and with transcoding the server's work)
+  if (!pickV) return;
+  pickV._hls?.destroy(); pickV.removeAttribute('src'); pickV.load(); pickV = null;
+};
 const pickPoint = e => { const b = pickBox.getBoundingClientRect(); return [(e.clientX - b.left) / b.width, (e.clientY - b.top) / b.height].map(v => Math.min(1, Math.max(0, v))); };
 pickBox.onpointerdown = e => { pickBox.setPointerCapture(e.pointerId); pickFrom = pickPoint(e); pickShow(null); };
 pickBox.onpointermove = e => {
@@ -1245,8 +1257,7 @@ pickBox.onpointermove = e => {
   pickShow([Math.min(pickFrom[0], p[0]), Math.min(pickFrom[1], p[1]), Math.max(pickFrom[0], p[0]), Math.max(pickFrom[1], p[1])]);
 };
 pickBox.onpointerup = () => { pickFrom = null; if (pickR && (pickR[2] - pickR[0] < 0.02 || pickR[3] - pickR[1] < 0.02)) pickShow(null); }; // a click is not a frame
-$('pickSeek').oninput = e => V.currentTime = +e.target.value;
-V.addEventListener('seeked', () => $('pickDlg').open && pickDraw());
+$('pickSeek').oninput = e => { if (pickV) pickV.currentTime = +e.target.value; };
 $('pickUse').onclick = () => { picRect = pickR; $('pickDlg').close(); toast(t('Movie picture marked')); };
 $('pickSkip').onclick = () => { picRect = false; $('pickDlg').close(); };
 $('pickCancel').onclick = () => $('pickDlg').close();
@@ -1385,10 +1396,12 @@ async function setSource(v, item, fileUrl) {
   v._hls?.destroy(); v._hls = null; playMode[slot] = '';
   v.crossOrigin = item.id ? 'anonymous' : null; // the browser only hands out the audio of cross-origin media with CORS (automatic detection)
   v.removeAttribute('src'); v.load(); // detach the old video right away, not only once the new one has been resolved
+  v._src = null;
   if (v === S) { merr = ''; movieStep(item.id ? 'Asking Jellyfin …' : 'Loading movie …'); }
   try {
     const { url, hls } = item.id ? await jfSource(item.id) : { url: fileUrl };
     if (cur[slot] !== item) return; // something else has been selected in the meantime
+    v._src = { url, hls }; // for a second video on the same source (picker dialog)
     if (v === S) movieStep(hls ? 'Server is preparing the stream (transcoding) …' : 'Loading movie …');
     if (item.id) playMode[slot] = hls ? 'transcoded by server' : 'direct';
     showCurrent();
