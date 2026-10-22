@@ -28,7 +28,7 @@
   button { white-space: nowrap; }
   button:hover, select:hover { background: #313644; }
   button:active { filter: brightness(1.5); transform: translateY(1px); }
-  button:disabled, fieldset:disabled button { opacity: .45; cursor: default; }
+  button:disabled, button[aria-disabled=true], fieldset:disabled button { opacity: .45; cursor: default; }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   button.primary { background: var(--accent); border-color: var(--accent); color: #1a1200; font-weight: 600; }
   button.primary:hover { background: #ffc34f; }
@@ -156,6 +156,8 @@
   #stage.showdock > #dock, #stage > #dock:has(:focus-visible) { transform: none; }
   #empty { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; color: var(--dim); background: radial-gradient(circle at 50% 40%, #1b1e26, #000 70%); }
   #empty b { font-size: 1.4em; color: var(--text); }
+  #mstate { position: absolute; top: 8px; left: 8px; z-index: 2; padding: 4px 10px; background: #000c; border: 1px solid #555; border-radius: 8px; font-size: .9em; pointer-events: none; }
+  #mstate.err { border-color: #e66; color: #ff8a80; }
   #toast { position: absolute; top: 8%; left: 50%; transform: translateX(-50%); z-index: 3; padding: 8px 16px; background: #000c; border: 1px solid #555; border-radius: 10px; font-size: 1.2em; pointer-events: none; text-align: center; backdrop-filter: blur(6px); }
   #keys { position: absolute; inset: 0; margin: auto; width: fit-content; height: fit-content; padding: 16px 24px; background: #000c; border: 1px solid #555; border-radius: 10px; z-index: 2; backdrop-filter: blur(6px); }
   #keys td { padding: 4px 10px; }
@@ -355,6 +357,7 @@
   </div></div>
   <button id="rhidden" hidden title="Reaction picture hidden, audio keeps playing – click or press V to show it"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4" height="6" rx="1"/><rect x="17" y="14" width="4" height="6" rx="1"/></svg></button>
   <button id="fsExit" data-i="exit" data-t>Exit fullscreen</button>
+  <div id="mstate" hidden role="status"></div>
   <div id="toast" hidden></div>
   <div id="found" hidden role="status"><span id="foundText"></span><span class="bar"><button id="foundStart" class="primary" data-i="people" title="From the beginning of the reaction: play it from 0:00, the movie joins on time at its offset" data-t>From the beginning of the reaction</button><button id="foundSkip" class="primary" data-i="clap" title="Skip to the movie start: jump to a few seconds before the movie starts and play" data-t>Skip to the movie start</button><button id="foundHere" data-t>Continue here</button></span><button id="foundClose" class="flat" title="Close">✕</button></div>
   <div id="msg" hidden><span id="msgText"></span><button id="msgClose" class="flat" title="Dismiss message">✕</button></div>
@@ -560,6 +563,12 @@ const I18N = { de: {
   'No YouTube link recognised.': 'Kein YouTube-Link erkannt.', 'Only a video file works as the movie.': 'Als Film geht nur eine Videodatei.',
   'Please sign in to Jellyfin – the session resumes automatically afterwards.': 'Bitte bei Jellyfin anmelden – die Session wird danach automatisch fortgesetzt.',
   'Please choose the reaction file “{0}” – offset & position are then applied.': 'Bitte Reaction-Datei „{0}“ wählen – Offset & Position werden dann übernommen.',
+  'Asking Jellyfin …': 'Frage Jellyfin ab …', 'Server is preparing the stream (transcoding) …': 'Server bereitet den Stream vor (Transkodierung) …', 'Loading movie …': 'Film wird geladen …', 'Movie is buffering …': 'Film puffert …', 'Movie starts in {0}': 'Film startet in {0}', 'Movie not loaded: {0}': 'Film nicht geladen: {0}',
+  'about {0} left': 'noch ca. {0}', 'Movie is buffering – the reaction waits …': 'Film puffert – die Reaction wartet …',
+  'Not available yet: {0}': 'Noch nicht verfügbar: {0}',
+  'Nothing loaded yet – choose movie and reaction first.': 'Noch nichts geladen – zuerst Film und Reaction wählen.', 'No reaction chosen yet.': 'Noch keine Reaction gewählt.',
+  'The movie of this session still has to be chosen.': 'Der Film dieser Session muss noch gewählt werden.', 'No movie chosen yet.': 'Noch kein Film gewählt.',
+  'The reaction is still loading.': 'Die Reaction wird noch geladen.', 'The movie is still loading: {0}': 'Der Film lädt noch: {0}',
   'Session link copied to clipboard.': 'Session-Link in die Zwischenablage kopiert.', 'Copy session link:': 'Session-Link kopieren:',
   'Load movie and reaction first.': 'Erst Film und Reaction laden.', 'Session link is invalid.': 'Session-Link ist ungültig.',
   'Jellyfin address {0} taken from the session link.': 'Jellyfin-Adresse {0} aus dem Session-Link übernommen.',
@@ -608,6 +617,7 @@ function toast(t) { // short feedback on top of the video, visible in fullscreen
 let msgTimer;
 function msg(t) { // notice/error: stays for 12 s or until dismissed
   $('msgText').textContent = t; $('msg').hidden = !t;
+  if (t) console.warn(t);
   clearTimeout(msgTimer); if (t) msgTimer = setTimeout(() => $('msg').hidden = true, 12000);
 }
 $('msgClose').onclick = () => msg('');
@@ -727,6 +737,17 @@ S.addEventListener('seeked', () => { if (seekAt) lead = Math.min(3, (performance
 const fmt = s => new Date((Number.isFinite(s) ? s : 0) * 1000).toISOString().slice(11, 19);
 setInterval(() => {
   sync();
+  const why = playBlock();
+  if (why && !M.paused && !auto) M.pause(); // e.g. another movie is being loaded: do not run on without it
+  stallCheck();
+  for (const [id, label] of [['toggle', 'Play / pause (Space)'], ['stop', 'Stop']]) {
+    const b = $(id), ti = why ? `${t(label)} – ${t('Not available yet: {0}', why)}` : t(label);
+    b.setAttribute('aria-disabled', !!why);
+    if (b.title !== ti) b.title = ti;
+  }
+  const [st, bad] = movieStatus();
+  if ($('mstate').textContent !== st) { $('mstate').textContent = st; $('mstate').hidden = !st; }
+  $('mstate').classList.toggle('err', bad);
   const dur = Number.isFinite(M.duration) ? M.duration : 0; // Infinity: live stream or file without a duration
   $('seek').max = dur;
   // Where the movie lies on the reaction's timeline: from the offset for the movie's length
@@ -736,7 +757,7 @@ setInterval(() => {
   $('spans').style.setProperty('--b', pct(S.duration ? offset + S.duration / tempo : offset));
   if (!$('seek').matches(':active')) $('seek').value = M.currentTime;
   $('time').textContent = `${fmt(M.currentTime)} / ${fmt(dur)}`;
-  document.body.classList.toggle('playing', !M.paused); // play/pause icon
+  document.body.classList.toggle('playing', !M.paused || stalled); // play/pause icon; while waiting for the movie it offers "pause" (= stop waiting)
   document.body.classList.toggle('unmarked', !marked && !!cur.movie && !!cur.reaction); // large "Movie starts now"
   if (ms) ms.playbackState = M.paused ? 'paused' : 'playing'; // otherwise it counts as "paused" while the movie waits for the intro to end
 }, 100);
@@ -1233,16 +1254,40 @@ document.querySelectorAll('.pickBtn').forEach(b => b.onclick = pickOpen);
 document.querySelectorAll('.autoSync').forEach(b => b.onclick = autoSync);
 
 
-const toggle = () => M.paused ? M.play().catch(playErr) : M.pause();
-const stop = () => { M.pause(); M.currentTime = 0; marked = false; };
+// Play and stop only make sense once it is clear what is played and the movie can be jumped to: both sources chosen, the movie loaded (transcoding finished)
+function playBlock() {
+  if (!cur.reaction) return t(cur.movie ? 'No reaction chosen yet.' : 'Nothing loaded yet – choose movie and reaction first.');
+  if (movieWanted) return t('The movie of this session still has to be chosen.');
+  if (!cur.movie) return t('No movie chosen yet.');
+  if (!cur.reaction.yt && V.src && V.readyState < 1) return t('The reaction is still loading.');
+  if (mstep) return t('The movie is still loading: {0}', movieStatus()[0]);
+  return '';
+}
+// The movie stalls (buffering, transcoder catching up after a seek): the reaction waits for it instead of running away, and goes on by itself.
+// Short stalls (< 0.5 s, e.g. a correcting seek) are ignored. `stalled` = paused by us, so that a pause by hand is not undone.
+let stalled = false, starvedAt = 0;
+function stallCheck() {
+  const t = (M.currentTime - offset) * tempo;
+  const starved = !auto && !merr && !mstep && S.src && cur.movie && t >= 0 && t <= (S.duration || Infinity) && (S.seeking || S.readyState < 3);
+  if (stalled) {
+    if (!M.paused) stalled = false; // started by hand
+    else if (!starved) { stalled = false; M.play().catch(playErr); }
+  } else if (starved && !M.paused) {
+    starvedAt ||= performance.now();
+    if (performance.now() - starvedAt > 500) { stalled = true; starvedAt = 0; M.pause(); }
+  } else starvedAt = 0;
+}
+const blocked = () => { const why = playBlock(); if (why) toast(t('Not available yet: {0}', why)); return !!why; }; // a click on the greyed-out button says why
+const toggle = () => stalled ? (stalled = false) : blocked() || (M.paused ? M.play().catch(playErr) : M.pause()); // while waiting for the movie a click means: stop waiting
+const stop = () => (stalled = false, blocked()) || (M.pause(), M.currentTime = 0, marked = false);
 $('toggle').onclick = toggle;
 $('stop').onclick = stop;
 
 // Media keys / OS media controls: always control the master, the movie follows via sync()
 const ms = navigator.mediaSession;
 if (ms) {
-  ms.setActionHandler('play', () => M.play());
-  ms.setActionHandler('pause', () => M.pause());
+  ms.setActionHandler('play', () => blocked() || M.play());
+  ms.setActionHandler('pause', () => { stalled = false; M.pause(); });
   ms.setActionHandler('stop', stop);
   ms.setActionHandler('seekbackward', e => M.currentTime -= e.seekOffset || 10);
   ms.setActionHandler('seekforward', e => M.currentTime += e.seekOffset || 10);
@@ -1319,7 +1364,12 @@ const row = (...kids) => { const r = document.createElement('span'); r.append(..
 // --- Sources & sessions ---
 // source = { key, name, id?, yt? }; key = 'jf:<Jellyfin id>', 'yt:<video id>' or 'file:<name>:<size>'
 const cur = {};
-for (const v of [V, S]) v.onerror = () => v.src && msg(`${v === S ? t('Movie') : 'Reaction'}: ${t('Video cannot be played (codec/container not supported by the browser?)')}`);
+for (const v of [V, S]) v.onerror = () => {
+  if (!v.src) return;
+  const m = t('Video cannot be played (codec/container not supported by the browser?)');
+  msg(`${v === S ? t('Movie') : 'Reaction'}: ${m}`);
+  if (v === S) movieFail(m);
+};
 
 // Load a source into a <video>: local files directly; for Jellyfin the server decides (PlaybackInfo)
 // whether the browser can play the file directly or whether it is transcoded to an HLS stream.
@@ -1335,19 +1385,72 @@ async function setSource(v, item, fileUrl) {
   v._hls?.destroy(); v._hls = null; playMode[slot] = '';
   v.crossOrigin = item.id ? 'anonymous' : null; // the browser only hands out the audio of cross-origin media with CORS (automatic detection)
   v.removeAttribute('src'); v.load(); // detach the old video right away, not only once the new one has been resolved
+  if (v === S) { merr = ''; movieStep(item.id ? 'Asking Jellyfin …' : 'Loading movie …'); }
   try {
     const { url, hls } = item.id ? await jfSource(item.id) : { url: fileUrl };
     if (cur[slot] !== item) return; // something else has been selected in the meantime
+    if (v === S) movieStep(hls ? 'Server is preparing the stream (transcoding) …' : 'Loading movie …');
     if (item.id) playMode[slot] = hls ? 'transcoded by server' : 'direct';
     showCurrent();
     if (!hls || !window.MediaSource) return void (v.src = url); // without MediaSource (Safari) the browser plays HLS natively
     await hlsLib();
     if (cur[slot] !== item) return;
-    v._hls = new Hls();
-    v._hls.on(Hls.Events.ERROR, (_, d) => d.fatal && msg(t('{0}: stream error ({1})', item.name, d.details)));
+    // A seek far into the film (resumed session) makes Jellyfin restart its transcoder there; the first segment can take much longer than the default 10 s.
+    const slow = { maxTimeToFirstByteMs: 120000, maxLoadTimeMs: 240000, timeoutRetry: { maxNumRetry: 2, retryDelayMs: 0, maxRetryDelayMs: 0 }, errorRetry: { maxNumRetry: 3, retryDelayMs: 1000, maxRetryDelayMs: 8000 } };
+    // Start the stream where the movie has to be right now (resumed session): loading from 0:00 first and seeking afterwards makes Jellyfin
+    // abort and restart its transcoder, which can hang. Reaction position: still 0 while the reaction loads, then the saved one.
+    const at = ((M.currentTime || sessions()[cur.reaction?.key]?.pos || 0) - offset) * tempo;
+    const h = v._hls = new Hls({ startPosition: v === S && at > 1 ? at : -1, fragLoadPolicy: { default: slow }, manifestLoadPolicy: { default: slow } });
+    let retried = false;
+    h.on(Hls.Events.ERROR, (_, d) => {
+      console.warn('hls.js', d.type, d.details, d);
+      if (!d.fatal) return;
+      if (d.type === Hls.ErrorTypes.NETWORK_ERROR && !retried) { retried = true; return h.startLoad(); } // one more try before giving up
+      const m = t('{0}: stream error ({1})', item.name, d.details);
+      msg(m); if (v === S) movieFail(m);
+    });
     v._hls.loadSource(url); v._hls.attachMedia(v);
-  } catch (e) { msg(`${item.name}: ${e.message}`); }
+  } catch (e) { msg(`${item.name}: ${e.message}`); if (v === S) movieFail(e.message); }
 }
+
+// What the user sees of the movie: why it is black (still loading / failed / not started yet), derived from the real state of the <video>
+let mstep = '', mstepAt = 0, merr = '';
+let mpct = null, meta = ''; // transcoding progress in % (0–99) and estimated time left; null: Jellyfin does not report it, then seconds are shown
+let first = null; // [transcoder position, time] at the first report: gives the transcoder's speed
+const movieStep = (s = '') => { mstep = s; mstepAt = performance.now(); mpct = first = null; meta = ''; };
+const movieFail = m => { merr = m; mstep = ''; };
+S.addEventListener('loadedmetadata', () => S._hls || movieStep()); // direct play: the browser may not load more before play
+S.addEventListener('loadeddata', () => movieStep());
+function movieStatus() {
+  if (!cur.movie) return ['', false];
+  if (merr) return [t('Movie not loaded: {0}', merr), true];
+  if (mstep) return [`${t(mstep)} ${mpct == null ? Math.floor((performance.now() - mstepAt) / 1000) + ' s' : mpct + ' %' + meta}`, false];
+  if (!S.src) return ['', false];
+  if (stalled) return [t('Movie is buffering – the reaction waits …'), false];
+  const wait = offset - M.currentTime;
+  if (wait > 0.5) return [t('Movie starts in {0}', fmt(wait)), false];
+  return [S.readyState < (M.paused ? 2 : 3) && (M.currentTime - offset) * tempo <= (S.duration || Infinity) ? t('Movie is buffering …') : '', false];
+}
+
+// Jellyfin lists how far its transcoder has come in the session list (TranscodingInfo.CompletionPercentage of the whole film).
+// The stream can start once the transcoder has reached where the movie has to be now, plus a few segments; its speed gives the time left.
+// ponytail: unverified against the Jellyfin versions in use; without a number (no TranscodingInfo, error) the seconds counter stays
+const READY_S = 18; // seconds of film (3 segments) beyond the start position that count as "ready"
+let polling = false;
+setInterval(async () => {
+  const h = S._hls, d = h?.levels?.[0]?.details?.totalduration;
+  if (!mstep || !h || !d || !loggedIn() || polling) return;
+  polling = true;
+  try {
+    const p = (await api(`Sessions?DeviceId=${encodeURIComponent(deviceId)}`)).map(x => x.TranscodingInfo?.CompletionPercentage).find(Number.isFinite);
+    if (p === undefined) return;
+    const pos = p / 100 * d, goal = Math.max(0, h.config.startPosition) + READY_S, now = performance.now();
+    first ??= [pos, now];
+    const speed = (pos - first[0]) / ((now - first[1]) / 1000); // seconds of film per second
+    mpct = Math.min(99, Math.max(0, Math.round(pos / goal * 100)));
+    meta = speed > 0 && pos < goal && (goal - pos) / speed < 3600 ? ` · ${t('about {0} left', fmt((goal - pos) / speed).replace(/^00:/, ''))}` : '';
+  } catch {} finally { polling = false; }
+}, 1500);
 
 let movieWanted = false; // the session's movie still has to be chosen by hand: do not autosave over it with the current one
 function loadMovie(item, src) { pending = null; movieWanted = false; cur.movie = item; msg(''); updateMeta(); showCurrent('movie'); setSource(S, item, src); }
@@ -1375,8 +1478,30 @@ function loadReaction(item, src) { // a saved session for this reaction is appli
   if (s.movie.id && loggedIn()) return loadMovie(s.movie);
   movieWanted = true;
   msg(t(s.movie.id ? 'Please sign in to Jellyfin and choose the movie “{0}”.' : 'Please choose the movie file “{0}”.', s.movie.name));
+  if (!s.movie.id) savedFile(s.movie.key).then(f => f && cur.reaction === item && movieWanted && openFile(loadMovie, f));
 }
 const fileItem = f => ({ key: `file:${f.name}:${f.size}`, name: f.name });
+
+// Local files: a browser never reveals the path, but (Chromium) a file handle can be kept in IndexedDB and reopened later.
+// ponytail: without handle support (Firefox/Safari) or permission the session still asks for the file
+const idb = (mode, fn) => new Promise((res, rej) => {
+  const o = indexedDB.open('rw', 1);
+  o.onupgradeneeded = () => o.result.createObjectStore('h');
+  o.onerror = () => rej(o.error);
+  o.onsuccess = () => { const r = fn(o.result.transaction('h', mode).objectStore('h')); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); };
+});
+function openFile(load, f, handle) { // load a picked file and remember its handle under the session key
+  if (handle) idb('readwrite', s => s.put(handle, fileItem(f).key)).catch(() => {});
+  load(fileItem(f), URL.createObjectURL(f));
+}
+async function savedFile(key) { // the file again from the remembered handle; without permission (needs a click) or if it changed: nothing
+  try {
+    const h = await idb('readonly', s => s.get(key)), o = { mode: 'read' };
+    if (!h || (await h.queryPermission(o) !== 'granted' && await h.requestPermission(o) !== 'granted')) return;
+    const f = await h.getFile();
+    if (fileItem(f).key === key) return f;
+  } catch {}
+}
 
 const ytId = url => url.trim().match(/(?:v=|youtu\.be\/|shorts\/|embed\/|live\/)([\w-]{11})|^([\w-]{11})$/)?.slice(1).find(Boolean);
 const loadYt = id => id ? loadReaction({ key: `yt:${id}`, name: `YouTube ${id}`, yt: id }) : msg(t('No YouTube link recognised.'));
@@ -1403,7 +1528,12 @@ for (const box of slots) {
   const yt = box.querySelector('.yt');
   showSrc(box, 'jf');
   box.querySelectorAll('input[type=radio]').forEach(r => r.onchange = () => showSrc(box, r.value));
-  box.querySelector('input[type=file]').onchange = e => { const f = e.target.files[0]; if (f) pick(fileItem(f), URL.createObjectURL(f)); };
+  const file = box.querySelector('input[type=file]');
+  file.onchange = e => { const f = e.target.files[0]; if (f) openFile(pick, f); };
+  if (window.showOpenFilePicker) file.onclick = async e => { // the picker returns a handle that survives reloads
+    e.preventDefault();
+    try { const [h] = await showOpenFilePicker(); openFile(pick, await h.getFile(), h); } catch {} // cancelled
+  };
   box.querySelector('.q').onkeydown = e => { if (e.key === 'Enter') search(box, pick); }; // no return value: false would discard the keystroke
   box.querySelector('.search').onclick = () => search(box, pick);
   if (yt) {
@@ -1429,8 +1559,10 @@ addEventListener('drop', e => {
   e.preventDefault(); // otherwise the browser opens the file instead of the page
   const as = dropZone(e)?.dataset.as, f = e.dataTransfer.files[0];
   if (!as) return;
-  if (f) (as === 'movie' ? loadMovie : loadReaction)(fileItem(f), URL.createObjectURL(f));
-  else if (as === 'reaction') loadYt(ytId(e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain')));
+  if (f) { // the handle has to be requested synchronously inside the drop event
+    const hp = e.dataTransfer.items[0]?.getAsFileSystemHandle?.();
+    Promise.resolve(hp).catch(() => null).then(h => openFile(as === 'movie' ? loadMovie : loadReaction, f, h?.kind === 'file' ? h : null));
+  } else if (as === 'reaction') loadYt(ytId(e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain')));
   else msg(t('Only a video file works as the movie.'));
 });
 
@@ -1455,8 +1587,8 @@ function openSession(s) {
     setPanel(true, 'jf');
     return msg(t('Please sign in to Jellyfin – the session resumes automatically afterwards.'));
   }
-  if (r.yt || r.id) loadReaction(r);
-  else msg(t('Please choose the reaction file “{0}” – offset & position are then applied.', r.name));
+  if (r.yt || r.id) return loadReaction(r);
+  savedFile(r.key).then(f => f ? openFile(loadReaction, f) : msg(t('Please choose the reaction file “{0}” – offset & position are then applied.', r.name)));
 }
 const current = () => ({ movie: cur.movie, reaction: cur.reaction, offset, fps, pos: M.currentTime, rect: picRect, at: Date.now() });
 setInterval(() => { // autosave: offset + position per reaction

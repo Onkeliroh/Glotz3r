@@ -99,7 +99,7 @@ The keyboard's media keys (play/pause, stop) work as well.
 
 ### Sessions
 
-Offset, frame rates and position are saved automatically per reaction in the browser and applied the next time the same reaction is loaded. **Session link** copies a session as a link, for example for another device. The link contains the sources (Jellyfin ids plus the address of the Jellyfin server, YouTube video), offset and position, but no credentials. Whoever opens it signs in with their own Jellyfin account; the session then loads by itself. Local files cannot be linked – the link only carries the file name, and you have to pick the file yourself.
+Offset, frame rates and position are saved automatically per reaction in the browser and applied the next time the same reaction is loaded. **Session link** copies a session as a link, for example for another device. The link contains the sources (Jellyfin ids plus the address of the Jellyfin server, YouTube video), offset and position, but no credentials. Whoever opens it signs in with their own Jellyfin account; the session then loads by itself. Local files cannot be linked – the link only carries the file name, and you have to pick the file yourself. In the same browser (Chrome/Edge) a saved session reopens local files by itself after you picked them once with the file dialog or drag & drop – the browser never reveals the path, but remembers the file; it may ask once for permission. Elsewhere you pick the file again.
 
 ### Language
 

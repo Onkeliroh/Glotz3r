@@ -1,4 +1,4 @@
-// Glotz3r as a single executable: serves the embedded web/ folder locally and opens the page
+// GL00TZR as a single executable: serves the embedded web/ folder locally and opens the page
 // in the default browser. (YouTube embedding needs http, hence no file://.)
 // Manifest, service worker and icon make the page installable as an app (PWA); once installed,
 // it starts from the browser cache even without this server.
@@ -49,14 +49,14 @@ func main() {
 	url := fmt.Sprintf("http://127.0.0.1:%d/", *port)
 	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", *port)) // reachable locally only
 	if err != nil {
-		// Usually Glotz3r is already running there – then just open the existing one.
+		// Usually GL00TZR is already running there – then just open the existing one.
 		fmt.Printf("Port %d is in use (%v). Opening %s\n", *port, err, url)
 		if !*noBrowser {
 			openBrowser(url)
 		}
 		os.Exit(1)
 	}
-	fmt.Printf("Glotz3r is running at %s\nClosing this window (or Ctrl+C) stops it.\n", url)
+	fmt.Printf("GL00TZR is running at %s\nClosing this window (or Ctrl+C) stops it.\n", url)
 	if !*noBrowser {
 		openBrowser(url)
 	}
