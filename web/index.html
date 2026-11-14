@@ -199,6 +199,20 @@
   .card label.stack { grid-template-columns: minmax(0, 1fr); row-gap: 4px; }
   .card output { text-align: right; color: var(--dim); font-variant-numeric: tabular-nums; }
   #hideR { flex: 1; }
+  /* Layout dropdown with a sketch of each layout; amber = movie, blue = reaction (as on the seek bar) */
+  @supports (appearance: base-select) {
+    #layout, #layout::picker(select) { appearance: base-select; }
+    #layout > button { display: flex; align-items: center; padding: 0; border: 0; background: none; text-align: left; }
+    #layout::picker(select) { padding: 4px; margin-top: 4px; background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 6px 24px #000a; }
+    #layout option { gap: 10px; padding: 6px 8px; border-radius: 6px; }
+    #layout option:is(:hover, :focus-visible) { background: var(--ctl); }
+    #layout option:checked { color: var(--accent); }
+    #layout svg { width: 40px; height: 25px; flex: none; }
+    #layout selectedcontent { display: flex; align-items: center; gap: 10px; }
+    #layout selectedcontent svg { width: 32px; height: 20px; }
+    #layout .m { fill: var(--accent); opacity: .45; }
+    #layout .r { fill: #5aa2ff; stroke: var(--card); stroke-width: 1px; }
+  }
   /* "Movie starts now": large call to action until an offset is set (not yet pressed, or after Stop); then it moves into the offset card */
   #startBar { display: none; margin: 8px 0; }
   body.unmarked #startBar { display: flex; }
@@ -442,6 +456,7 @@
     <section class="card">
       <h3 data-t>View</h3>
       <label class="stack">Layout <select id="layout" title="Key L">
+        <button><selectedcontent></selectedcontent></button>
         <option value="side" data-t>Side by side (reaction right)</option>
         <option value="side-left" data-t>Side by side (reaction left)</option>
         <option value="stack" data-t>Top and bottom (reaction below)</option>
@@ -452,6 +467,7 @@
         <option value="pip-tl" data-t>Picture-in-picture top left</option>
       </select></label>
       <label><span data-t>Size</span> <input id="size" type="range" min="0" max="50" value="30"><output>30 %</output></label>
+      <label class="stack" id="subsBox" hidden><span data-t>Movie subtitles</span> <select id="subs" title="Changing them reloads the movie from Jellyfin"></select></label>
       <div class="bar"><button id="hideR" data-i="eye" title="Key V">Hide reaction</button></div>
     </section>
   </div>
@@ -546,6 +562,7 @@ const I18N = { de: {
   '<b>+</b> if your movie is <b>ahead</b> (your audio comes first)': '<b>+</b> wenn dein Film <b>voraus</b> ist (dein Ton kommt zuerst)',
   'Rough: press “Movie starts now” as soon as the movie begins in the reaction.': 'Grob: „Film startet jetzt“ drücken, sobald der Film in der Reaction beginnt.',
   'Volume': 'Lautstärke', 'Master': 'Gesamt', 'View': 'Ansicht', 'Size': 'Größe',
+  'Movie subtitles': 'Untertitel des Films', 'Off': 'Aus', 'Changing them reloads the movie from Jellyfin': 'Ändern lädt den Film neu von Jellyfin',
   'Side by side (reaction right)': 'Nebeneinander (Reaction rechts)', 'Side by side (reaction left)': 'Nebeneinander (Reaction links)',
   'Top and bottom (reaction below)': 'Übereinander (Reaction unten)', 'Top and bottom (reaction above)': 'Übereinander (Reaction oben)',
   'Picture-in-picture bottom right': 'Bild-in-Bild unten rechts', 'Picture-in-picture bottom left': 'Bild-in-Bild unten links',
@@ -599,7 +616,7 @@ function setLang(l) {
   lang = l; store('rwLang', lang);
   for (const b of $('lang').children) b.classList.toggle('on', b.dataset.lang === lang);
   // ponytail: Jellyfin tree rows that are already expanded keep their language until they are reloaded
-  translateDom(); showCurrent(); renderSessions(); renderLogin(); renderVersion(); setReactionHidden($('stage').classList.contains('rhide'));
+  translateDom(); showCurrent(); renderSessions(); renderLogin(); renderVersion(); setReactionHidden($('stage').classList.contains('rhide')); setLayout($('layout').value, false);
 }
 for (const [l, { name, flag }] of Object.entries(LANGS)) { // flags as SVG: Windows renders flag emoji as letters only
   const b = document.createElement('button');
@@ -607,6 +624,19 @@ for (const [l, { name, flag }] of Object.entries(LANGS)) { // flags as SVG: Wind
   b.innerHTML = `<svg viewBox="${flag[0]}" width="22" height="14" preserveAspectRatio="none">${flag[1]}</svg>${name}`;
   b.classList.toggle('on', l === lang);
   $('lang').append(b);
+}
+// Layout sketches inside the dropdown's options, next to the text (customisable <select>: Chromium 135+; elsewhere the plain text list).
+// The text moves into a data-t span first, so that translating it does not wipe the picture.
+const LAYOUT_ICON = { // [movie, reaction] as x, y, width, height in a 32×20 frame
+  side: [[0, 0, 22, 20], [23, 0, 9, 20]], 'side-left': [[10, 0, 22, 20], [0, 0, 9, 20]],
+  stack: [[0, 0, 32, 13], [0, 14, 32, 6]], 'stack-top': [[0, 7, 32, 13], [0, 0, 32, 6]],
+  'pip-br': [[0, 0, 32, 20], [20, 12, 10, 6]], 'pip-bl': [[0, 0, 32, 20], [2, 12, 10, 6]],
+  'pip-tr': [[0, 0, 32, 20], [20, 2, 10, 6]], 'pip-tl': [[0, 0, 32, 20], [2, 2, 10, 6]],
+};
+for (const o of $('layout').options) {
+  const rect = (c, [x, y, w, h]) => `<rect class="${c}" x="${x}" y="${y}" width="${w}" height="${h}" rx="1.5"/>`;
+  o.innerHTML = `<svg viewBox="0 0 32 20" aria-hidden="true">${rect('m', LAYOUT_ICON[o.value][0])}${rect('r', LAYOUT_ICON[o.value][1])}</svg><span data-t>${o.innerHTML.trim()}</span>`;
+  delete o.dataset.t;
 }
 translateDom();
 let toastTimer;
@@ -1336,9 +1366,10 @@ document.onfullscreenchange = () => { // controls (play, volume, offset…) stay
 const help = () => $('keys').hidden = !$('keys').hidden;
 $('help').onclick = $('keys').onclick = help;
 
-function setLayout(l) {
+function setLayout(l, keep = true) {
+  $('layout').selectedIndex = -1; // the dropdown copies the chosen option's picture and text only when the choice changes (also after a language switch)
   $('stage').dataset.layout = $('layout').value = l;
-  store('rwLayout', l);
+  if (keep) store('rwLayout', l);
 }
 function setReactionHidden(h) {
   $('stage').classList.toggle('rhide', h);
@@ -1354,7 +1385,7 @@ const layouts = [...$('layout').options].map(o => o.value);
 const nextLayout = () => setLayout(layouts[(layouts.indexOf($('layout').value) + 1) % layouts.length]);
 $('layout').onchange = e => setLayout(e.target.value);
 if (layouts.includes(stored('rwLayout'))) setLayout(stored('rwLayout'));
-else if (matchMedia('(max-width: 600px)').matches) $('stage').dataset.layout = $('layout').value = 'stack'; // phone default, not stored
+else setLayout(matchMedia('(max-width: 600px)').matches ? 'stack' : 'side', false); // phone / desktop default, not stored
 
 document.addEventListener('keydown', e => {
   if (/text|number|select|password/.test(e.target.type) || e.target.closest?.('dialog') || e.ctrlKey || e.metaKey || e.altKey) return; // leave Ctrl+R, Ctrl+V etc. to the browser
@@ -1397,10 +1428,11 @@ async function setSource(v, item, fileUrl) {
   v.crossOrigin = item.id ? 'anonymous' : null; // the browser only hands out the audio of cross-origin media with CORS (automatic detection)
   v.removeAttribute('src'); v.load(); // detach the old video right away, not only once the new one has been resolved
   v._src = null;
-  if (v === S) { merr = ''; movieStep(item.id ? 'Asking Jellyfin …' : 'Loading movie …'); }
+  if (v === S) { merr = ''; movieStep(item.id ? 'Asking Jellyfin …' : 'Loading movie …'); showSubs(); }
   try {
-    const { url, hls } = item.id ? await jfSource(item.id) : { url: fileUrl };
+    const { url, hls, subs, sub } = item.id ? await jfSource(item.id, item.sub) : { url: fileUrl };
     if (cur[slot] !== item) return; // something else has been selected in the meantime
+    if (v === S) showSubs(subs, sub);
     v._src = { url, hls }; // for a second video on the same source (picker dialog)
     if (v === S) movieStep(hls ? 'Server is preparing the stream (transcoding) …' : 'Loading movie …');
     if (item.id) playMode[slot] = hls ? 'transcoded by server' : 'direct';
@@ -1464,6 +1496,13 @@ setInterval(async () => {
     meta = speed > 0 && pos < goal && (goal - pos) / speed < 3600 ? ` · ${t('about {0} left', fmt((goal - pos) / speed).replace(/^00:/, ''))}` : '';
   } catch {} finally { polling = false; }
 }, 1500);
+
+// Subtitles of a Jellyfin movie: the choice travels with the movie item (and so with the session); a change reloads the movie
+function showSubs(list = [], sel = -1) {
+  $('subsBox').hidden = !list.length;
+  $('subs').replaceChildren(...[[-1, t('Off')], ...list].map(([i, n]) => new Option(n, i, false, i === sel)));
+}
+$('subs').onchange = e => { if (!cur.movie) return; M.pause(); loadMovie({ ...cur.movie, sub: +e.target.value }); };
 
 let movieWanted = false; // the session's movie still has to be chosen by hand: do not autosave over it with the current one
 function loadMovie(item, src) { pending = null; movieWanted = false; cur.movie = item; msg(''); updateMeta(); showCurrent('movie'); setSource(S, item, src); }
@@ -1724,18 +1763,24 @@ const deviceProfile = () => ({
   ContainerProfiles: [], SubtitleProfiles: [],
 });
 // ponytail: transcoding is not stopped actively; Jellyfin cleans it up itself once no more segments are requested
-async function jfSource(id) {
+// Subtitles: without SubtitleProfiles Jellyfin can only burn them into the picture, so a subtitle means transcoding.
+// sub: stream index; -1 or missing = off, whatever the user's Jellyfin default says. Returns the subtitle streams and the one actually burned in.
+// ponytail: text subtitles could come as WebVTT <track> (SubtitleProfiles External) and keep direct play; add when transcoding hurts
+async function jfSource(id, sub) {
   const info = await api(`Items/${id}/PlaybackInfo?userId=${jf.userId}`, { method: 'POST', body: JSON.stringify({
     UserId: jf.userId, DeviceProfile: deviceProfile(), MaxStreamingBitrate: 120000000,
     EnableDirectPlay: true, EnableDirectStream: true, EnableTranscoding: true, AutoOpenLiveStream: true,
+    SubtitleStreamIndex: Number.isInteger(sub) ? sub : -1, // from stored sessions: untrusted
   }) });
   const src = info.MediaSources?.[0];
   if (!src) throw new Error(t('Jellyfin returned no playable source{0}.', info.ErrorCode ? ` (${info.ErrorCode})` : ''));
+  const subs = (src.MediaStreams || []).filter(s => s.Type === 'Subtitle').map(s => [s.Index, s.DisplayTitle || s.Language || `#${s.Index}`]);
   if (src.SupportsDirectPlay || src.SupportsDirectStream) {
-    return { url: `${base()}Videos/${id}/stream?static=true&mediaSourceId=${encodeURIComponent(src.Id)}&ApiKey=${encodeURIComponent(jf.token)}` };
+    return { subs, sub: -1, url: `${base()}Videos/${id}/stream?static=true&mediaSourceId=${encodeURIComponent(src.Id)}&ApiKey=${encodeURIComponent(jf.token)}` };
   }
   if (!src.TranscodingUrl) throw new Error(t('Format not supported by the browser and Jellyfin offers no transcoding.'));
-  return { url: base() + src.TranscodingUrl.replace(/^\//, ''), hls: true };
+  const burned = new URL(src.TranscodingUrl, base()).searchParams.get('SubtitleStreamIndex');
+  return { subs, sub: burned === null ? -1 : +burned, url: base() + src.TranscodingUrl.replace(/^\//, ''), hls: true };
 }
 
 async function api(path, opts = {}) {
