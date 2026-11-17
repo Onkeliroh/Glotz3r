@@ -198,7 +198,12 @@
   .card label { display: grid; grid-template-columns: 5.5em minmax(0, 1fr) 3.5em; column-gap: 6px; align-items: center; margin-top: 8px; }
   .card label.stack { grid-template-columns: minmax(0, 1fr); row-gap: 4px; }
   .card output { text-align: right; color: var(--dim); font-variant-numeric: tabular-nums; }
-  #hideR { flex: 1; }
+  #hideR, #timerBtn { flex: 1; }
+  body.timer #timerBtn { border-color: var(--accent); color: var(--accent); }
+  /* Movie timer: white on black in a lower corner of the movie (the corner depends on where the movie sits in the layout) */
+  #mtimer { position: absolute; left: 8px; bottom: 8px; z-index: 2; padding: 2px 8px; background: #000; color: #fff; border-radius: 4px; font: 600 1.3em/1.3 ui-monospace, Consolas, monospace; pointer-events: none; }
+  #stage:is([data-layout="side-left"], [data-layout="pip-bl"]) #mtimer { left: auto; right: 8px; }
+  #stage[data-layout="stack"] #mtimer { bottom: calc(var(--rs, 30%) + 8px); }
   /* Layout dropdown with a sketch of each layout; amber = movie, blue = reaction (as on the seek bar) */
   @supports (appearance: base-select) {
     #layout, #layout::picker(select) { appearance: base-select; }
@@ -372,6 +377,7 @@
   <button id="rhidden" hidden title="Reaction picture hidden, audio keeps playing – click or press V to show it"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4" height="6" rx="1"/><rect x="17" y="14" width="4" height="6" rx="1"/></svg></button>
   <button id="fsExit" data-i="exit" data-t>Exit fullscreen</button>
   <div id="mstate" hidden role="status"></div>
+  <div id="mtimer" hidden></div>
   <div id="toast" hidden></div>
   <div id="found" hidden role="status"><span id="foundText"></span><span class="bar"><button id="foundStart" class="primary" data-i="people" title="From the beginning of the reaction: play it from 0:00, the movie joins on time at its offset" data-t>From the beginning of the reaction</button><button id="foundSkip" class="primary" data-i="clap" title="Skip to the movie start: jump to a few seconds before the movie starts and play" data-t>Skip to the movie start</button><button id="foundHere" data-t>Continue here</button></span><button id="foundClose" class="flat" title="Close">✕</button></div>
   <div id="msg" hidden><span id="msgText"></span><button id="msgClose" class="flat" title="Dismiss message">✕</button></div>
@@ -387,6 +393,7 @@
     <tr><td><kbd>R</kbd></td><td data-t>Movie starts now (reset offset)</td></tr>
     <tr><td><kbd>A</kbd></td><td data-t>Detect movie start automatically</td></tr>
     <tr><td><kbd>L</kbd></td><td data-t>Next layout</td></tr>
+    <tr><td><kbd>T</kbd></td><td data-t>Show / hide movie timer</td></tr>
     <tr><td><kbd>V</kbd></td><td data-t>Hide / show reaction picture (audio keeps playing)</td></tr>
     <tr><td><kbd>F</kbd></td><td data-t>Fullscreen on / off</td></tr>
     <tr><td><kbd>H</kbd> <kbd>?</kbd></td><td data-t>Show / hide this overview</td></tr>
@@ -454,7 +461,7 @@
       <label>Reaction <input id="volReaction" type="range" min="0" max="1" step="0.05" value="1"><output></output></label>
     </section>
     <section class="card">
-      <h3 data-t>View</h3>
+      <h3>Reaction</h3>
       <label class="stack">Layout <select id="layout" title="Key L">
         <button><selectedcontent></selectedcontent></button>
         <option value="side" data-t>Side by side (reaction right)</option>
@@ -468,7 +475,7 @@
       </select></label>
       <label><span data-t>Size</span> <input id="size" type="range" min="0" max="50" value="30"><output>30 %</output></label>
       <label class="stack" id="subsBox" hidden><span data-t>Movie subtitles</span> <select id="subs" title="Changing them reloads the movie from Jellyfin"></select></label>
-      <div class="bar"><button id="hideR" data-i="eye" title="Key V">Hide reaction</button></div>
+      <div class="bar"><button id="hideR" data-i="eye" title="Key V">Hide reaction</button><button id="timerBtn" data-i="clock" title="Key T: the movie's time as the reaction's timer shows it – compare both to set the offset" data-t>Movie timer</button></div>
     </section>
   </div>
 </footer>
@@ -561,8 +568,9 @@ const I18N = { de: {
   '<b>−</b> if your movie is <b>behind</b> (the reaction audio comes first)': '<b>−</b> wenn dein Film <b>hinterherhinkt</b> (Ton der Reaction kommt zuerst)',
   '<b>+</b> if your movie is <b>ahead</b> (your audio comes first)': '<b>+</b> wenn dein Film <b>voraus</b> ist (dein Ton kommt zuerst)',
   'Rough: press “Movie starts now” as soon as the movie begins in the reaction.': 'Grob: „Film startet jetzt“ drücken, sobald der Film in der Reaction beginnt.',
-  'Volume': 'Lautstärke', 'Master': 'Gesamt', 'View': 'Ansicht', 'Size': 'Größe',
-  'Movie subtitles': 'Untertitel des Films', 'Off': 'Aus', 'Changing them reloads the movie from Jellyfin': 'Ändern lädt den Film neu von Jellyfin',
+  'Volume': 'Lautstärke', 'Master': 'Gesamt', 'Size': 'Größe',
+  'Movie subtitles': 'Untertitel des Films', 'Movie timer': 'Film-Timer', 'Show / hide movie timer': 'Film-Timer ein- / ausblenden',
+  'Key T: the movie\'s time as the reaction\'s timer shows it – compare both to set the offset': 'Taste T: die Filmzeit, wie der Timer der Reaction sie zeigt – beide vergleichen, um den Offset einzustellen', 'Off': 'Aus', 'Changing them reloads the movie from Jellyfin': 'Ändern lädt den Film neu von Jellyfin',
   'Side by side (reaction right)': 'Nebeneinander (Reaction rechts)', 'Side by side (reaction left)': 'Nebeneinander (Reaction links)',
   'Top and bottom (reaction below)': 'Übereinander (Reaction unten)', 'Top and bottom (reaction above)': 'Übereinander (Reaction oben)',
   'Picture-in-picture bottom right': 'Bild-in-Bild unten rechts', 'Picture-in-picture bottom left': 'Bild-in-Bild unten links',
@@ -787,6 +795,10 @@ setInterval(() => {
   $('spans').style.setProperty('--b', pct(S.duration ? offset + S.duration / tempo : offset));
   if (!$('seek').matches(':active')) $('seek').value = M.currentTime;
   $('time').textContent = `${fmt(M.currentTime)} / ${fmt(dur)}`;
+  // Film time as in the reaction (before the fps conversion to my copy): what the reaction's own timer should show; negative before the movie starts
+  const ft = M.currentTime - offset, mt = (ft < 0 ? '−' : '') + fmt(Math.abs(ft));
+  $('mtimer').hidden = !document.body.classList.contains('timer') || !cur.movie || !cur.reaction;
+  if ($('mtimer').textContent !== mt) $('mtimer').textContent = mt;
   document.body.classList.toggle('playing', !M.paused || stalled); // play/pause icon; while waiting for the movie it offers "pause" (= stop waiting)
   document.body.classList.toggle('unmarked', !marked && !!cur.movie && !!cur.reaction); // large "Movie starts now"
   if (ms) ms.playbackState = M.paused ? 'paused' : 'playing'; // otherwise it counts as "paused" while the movie waits for the intro to end
@@ -1346,7 +1358,9 @@ function applyVolume() {
 try { JSON.parse(stored('rwVol', '[]')).forEach((v, i) => { if (vols[i] && v >= 0 && v <= 1) vols[i].value = v; }); } catch {}
 for (const v of vols) v.oninput = () => { applyVolume(); store('rwVol', JSON.stringify(vols.map(v => +v.value))); };
 applyVolume();
-$('size').oninput = e => { $('stage').style.setProperty('--rs', e.target.value + '%'); e.target.nextElementSibling.value = e.target.value + ' %'; };
+const setSize = v => { $('size').value = v; v = $('size').value; /* clamped to the slider's range */ $('stage').style.setProperty('--rs', v + '%'); $('size').nextElementSibling.value = v + ' %'; };
+$('size').oninput = e => { setSize(e.target.value); store('rwSize', e.target.value); };
+if (+stored('rwSize', -1) >= 0) setSize(+stored('rwSize'));
 const fullscreen = () => document.fullscreenElement ? document.exitFullscreen() : $('stage').requestFullscreen();
 $('fs').onclick = $('fsExit').onclick = fullscreen;
 let moveTimer;
@@ -1379,6 +1393,9 @@ function setReactionHidden(h) {
 }
 const toggleReaction = () => { setReactionHidden(!$('stage').classList.contains('rhide')); toast(t($('stage').classList.contains('rhide') ? 'Reaction picture hidden' : 'Reaction picture shown')); };
 $('hideR').onclick = $('rhidden').onclick = toggleReaction;
+const toggleTimer = () => store('rwTimer', document.body.classList.toggle('timer') ? '1' : '');
+$('timerBtn').onclick = toggleTimer;
+document.body.classList.toggle('timer', !!stored('rwTimer'));
 setReactionHidden(!!stored('rwHideReaction'));
 
 const layouts = [...$('layout').options].map(o => o.value);
@@ -1393,6 +1410,7 @@ document.addEventListener('keydown', e => {
   if (d) nudge(d);
   else if (e.key === 'r' || e.key === 'R') restart();
   else if (e.key === 'a' || e.key === 'A') autoSync();
+  else if (e.key === 't' || e.key === 'T') toggleTimer();
   else if (e.key === 'l' || e.key === 'L') { nextLayout(); toast($('layout').selectedOptions[0].text); }
   else if (e.key === 'v' || e.key === 'V') toggleReaction();
   else if (e.key === 'f' || e.key === 'F') fullscreen();
@@ -1724,8 +1742,8 @@ function setPanel(open, tab = ui('Tab', 'movie')) {
   for (const p of document.querySelectorAll('[data-pane]')) p.hidden = p.dataset.pane !== tab;
   renderSessions();
 }
-document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => setPanel(true, b.dataset.tab));
-$('panelBtn').onclick = () => setPanel(!document.body.classList.contains('panel'));
+document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { setPanel(true, b.dataset.tab); fillTrees(); });
+$('panelBtn').onclick = () => { setPanel(!document.body.classList.contains('panel')); fillTrees(); };
 $('panelClose').onclick = () => setPanel(false);
 $('more').onclick = () => setUi('Compact', document.body.classList.toggle('compact') ? '1' : '');
 document.body.classList.toggle('compact', !!ui('Compact', ''));
@@ -1770,7 +1788,8 @@ async function jfSource(id, sub) {
   const info = await api(`Items/${id}/PlaybackInfo?userId=${jf.userId}`, { method: 'POST', body: JSON.stringify({
     UserId: jf.userId, DeviceProfile: deviceProfile(), MaxStreamingBitrate: 120000000,
     EnableDirectPlay: true, EnableDirectStream: true, EnableTranscoding: true, AutoOpenLiveStream: true,
-    SubtitleStreamIndex: Number.isInteger(sub) ? sub : -1, // from stored sessions: untrusted
+    // Jellyfin applies the stream indexes only together with the media source id (the item's own source has the item's id)
+    MediaSourceId: id, SubtitleStreamIndex: Number.isInteger(sub) ? sub : -1, // sub from stored sessions: untrusted
   }) });
   const src = info.MediaSources?.[0];
   if (!src) throw new Error(t('Jellyfin returned no playable source{0}.', info.ErrorCode ? ` (${info.ErrorCode})` : ''));
@@ -1810,8 +1829,15 @@ function renderLogin() {
     if (tree.dataset.who !== who) { // rebuild only on sign-in/sign-out, otherwise keep expanded branches
       tree.dataset.who = who;
       tree.replaceChildren();
-      if (who) loadTree(tree, null, box.pick);
     }
+  }
+  fillTrees();
+}
+// The libraries at the top of the tree; a load that failed or came back empty is retried whenever a source tab is opened
+function fillTrees() {
+  for (const box of slots) {
+    const tree = box.querySelector('.tree');
+    if (loggedIn() && !tree.children.length && !tree.loading) tree.loading = loadTree(tree, null, box.pick).finally(() => tree.loading = null);
   }
 }
 $('server').onchange = () => { store('jfServer', $('server').value.trim()); renderLogin(); };
