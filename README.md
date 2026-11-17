@@ -105,6 +105,20 @@ Offset, frame rates and position are saved automatically per reaction in the bro
 
 English and German, switchable on the settings tab (gear icon) of the menu; the default is the browser language. Another language only needs an entry in `LANGS` and a dictionary in `I18N` (both in `web/index.html`; the key is the English text). Missing translations are reported in the browser console.
 
+### Color scheme
+
+The settings tab offers color schemes; the choice is saved in the browser. The default is *Warm Sunset Journey for Cinematic Road Trips*. The others are *Ethereal Pastel Cinematic Dreamscape Palette*, *Cinematic Time Travel: A Colorful Journey*, *Cinematic Glamour with Gold Shimmer* and *Classic*, which is close to the earlier look. Each scheme is five colors, and every color of the interface is derived from them. The schemes come from the cinematic palettes at <https://colorany.com/color-palettes/cinematic-color-palettes/>.
+
+To add one, add an entry to `SCHEMES` at the top of `web/index.html`. List its five colors in role order, not in the palette's order:
+
+1. **accent**: buttons, focus, the movie in the layout sketches and on the seek bar
+2. **reaction**: the reaction in the layout sketches and on the seek bar
+3. **highlight**: hover on the main buttons, the signed-in dot
+4. **alert**: errors
+5. **base**: the color that tints the backgrounds. Only its hue and part of its saturation are used; the backgrounds always stay dark, so a pastel or pure black works too
+
+The accent and the reaction colors should be easy to tell apart. The accent should be light, because the text on it is dark.
+
 ## Install as an app (no need to start the server)
 
 GL00TZR can be installed as an app (PWA). It then starts like a program of its own from the start menu, even when the `.exe` is not running:

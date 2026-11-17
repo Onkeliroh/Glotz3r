@@ -6,12 +6,44 @@
 <title>GL00TZR – Spectatorem spectantem specta</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
-<meta name="theme-color" content="#15171d">
+<meta name="theme-color" content="#1c0d17">
+<script>
+// Color schemes: five colors each, listed in role order [accent, reaction, highlight, alert, base]; every UI color is derived from these
+// five (:root below). A new scheme is one more entry. The choice is stored per browser (rwScheme) and applied here, before the page
+// is drawn, so nothing flashes. Source of the palettes: https://colorany.com/color-palettes/cinematic-color-palettes/ (README: Color scheme).
+const SCHEMES = {
+  sunset: { name: 'Warm Sunset Journey for Cinematic Road Trips', colors: ['#FFC300', '#FF5733', '#FFDA44', '#C70039', '#581845'] },
+  pastel: { name: 'Ethereal Pastel Cinematic Dreamscape Palette', colors: ['#FAD3A4', '#B2E8E0', '#FFFFFF', '#FFC3E3', '#E0B0FF'] },
+  timetravel: { name: 'Cinematic Time Travel: A Colorful Journey', colors: ['#FFD700', '#4682B4', '#F5F5DC', '#B22222', '#8B4513'] },
+  glamour: { name: 'Cinematic Glamour with Gold Shimmer', colors: ['#FFD700', '#C0C0C0', '#FFFFFF', '#8B0000', '#000000'] },
+  classic: { name: 'Classic', colors: ['#FFB224', '#5AA2FF', '#FFC34F', '#E5484D', '#2B3A55'] },
+};
+function applyScheme(id) {
+  const s = SCHEMES[id] || SCHEMES.sunset;
+  ['accent', 'reaction', 'highlight', 'alert', 'base'].forEach((r, i) => document.documentElement.style.setProperty('--s-' + r, s.colors[i]));
+}
+try { applyScheme(localStorage.rwScheme); } catch { applyScheme(); }
+</script>
 <style>
   :root {
     color-scheme: dark; font: 14px/1.4 system-ui, sans-serif;
-    --bg: #0e0f13; --panel: #15171d; --card: #1b1e26; --ctl: #262a35; --line: #2c303c;
-    --text: #e8eaf0; --dim: #8b91a1; --accent: #ffb224;
+    /* The scheme's five colors (set by applyScheme; these are the defaults) … */
+    --s-accent: #FFC300; --s-reaction: #FF5733; --s-highlight: #FFDA44; --s-alert: #C70039; --s-base: #581845;
+    /* … and everything derived from them. Surfaces take only the base color's hue and a share of its chroma, at fixed lightness steps,
+       so a pastel or a pure black base gives the same dark, legible interface as a deep one. Text is faintly tinted by the highlight. */
+    --bg: oklch(from var(--s-base) .155 calc(c * .25) h);
+    --panel: oklch(from var(--s-base) .185 calc(c * .3) h);
+    --card: oklch(from var(--s-base) .215 calc(c * .38) h);
+    --ctl: oklch(from var(--s-base) .255 calc(c * .5) h);
+    --hover: oklch(from var(--s-base) .31 calc(c * .6) h);
+    --line: oklch(from var(--s-base) .3 calc(c * .45) h);
+    --edge: oklch(from var(--s-base) .5 calc(c * .35) h); /* borders of overlays on the picture */
+    --text: color-mix(in oklab, var(--s-highlight) 6%, #f4f1f3);
+    --dim: color-mix(in oklab, var(--s-highlight) 10%, #aaa2ad);
+    --accent: var(--s-accent); --on-accent: oklch(from var(--s-base) .17 calc(c * .4) h);
+    --reaction: var(--s-reaction); --highlight: var(--s-highlight);
+    --alert: var(--s-alert); --alert-text: color-mix(in oklab, var(--s-alert) 55%, #fff);
+    --overlay: color-mix(in srgb, var(--card) 95%, transparent);
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; }
@@ -26,12 +58,12 @@
   input:not([type=range], [type=radio], [type=file]) { background: var(--bg); min-width: 0; }
   button, select, label { cursor: pointer; }
   button { white-space: nowrap; }
-  button:hover, select:hover { background: #313644; }
+  button:hover, select:hover { background: var(--hover); }
   button:active { filter: brightness(1.5); transform: translateY(1px); }
   button:disabled, button[aria-disabled=true], fieldset:disabled button { opacity: .45; cursor: default; }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-  button.primary { background: var(--accent); border-color: var(--accent); color: #1a1200; font-weight: 600; }
-  button.primary:hover { background: #ffc34f; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+  button.primary:hover { background: var(--highlight); border-color: var(--highlight); }
   button.icon { display: inline-grid; place-content: center; width: 34px; height: 34px; padding: 0; }
   button.flat { background: none; border-color: transparent; }
   button.flat:hover { background: var(--ctl); }
@@ -62,7 +94,7 @@
   [data-i=vol] { --i: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9zM16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg>'); }
   [data-i=exit] { --i: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>'); }
   [data-i]:empty::before { margin: 0; }
-  kbd { padding: 1px 7px; border: 1px solid #555; border-radius: 4px; background: #2a2d36; font: inherit; }
+  kbd { padding: 1px 7px; border: 1px solid var(--edge); border-radius: 4px; background: var(--ctl); font: inherit; }
   .bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0; }
   .grow { flex: 1; }
   .hint { color: var(--dim); }
@@ -70,6 +102,11 @@
   .hint b { color: var(--text); }
   a { color: var(--accent); }
   label { display: inline-flex; align-items: center; gap: 6px; }
+  #scheme { display: grid; gap: 6px; }
+  #scheme button { display: flex; align-items: center; gap: 10px; white-space: normal; text-align: left; }
+  #scheme button.on { border-color: var(--accent); }
+  #scheme .sw { display: flex; flex: none; border-radius: 4px; overflow: hidden; }
+  #scheme .sw i { width: 14px; height: 22px; }
 
   /* --- Header --- */
   header { grid-area: head; display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: var(--panel); border-bottom: 1px solid var(--line); }
@@ -92,8 +129,8 @@
   .tabs button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: 9px 8px; color: var(--dim); }
   .tabs button:hover { color: var(--text); background: none; }
   .tabs button.on { color: var(--text); border-bottom-color: var(--accent); }
-  .tabs .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #555; }
-  body.jf-in .tabs .dot { background: #4cc38a; }
+  .tabs .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--edge); }
+  body.jf-in .tabs .dot { background: var(--highlight); }
   .pane { flex: 1; min-height: 0; overflow: auto; padding: 6px 14px 14px; }
   .now { display: block; padding: 8px 10px; border-radius: 8px; background: var(--card); border: 1px solid var(--line); }
   .now small { display: block; color: var(--dim); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
@@ -101,7 +138,7 @@
   .srcs label { padding: 4px 12px; border: 1px solid var(--line); margin-left: -1px; background: var(--ctl); }
   .srcs label:first-child { border-radius: 8px 0 0 8px; margin-left: 0; }
   .srcs label:last-child { border-radius: 0 8px 8px 0; }
-  .srcs label:has(:checked) { background: var(--accent); border-color: var(--accent); color: #1a1200; font-weight: 600; }
+  .srcs label:has(:checked) { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
   .srcs input { position: absolute; opacity: 0; pointer-events: none; }
   fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
   .jf .q, .yt, .bar[data-src=file] > input { flex: 1 1 100%; min-width: 0; }
@@ -147,36 +184,36 @@
   #rhidden { position: absolute; top: 8px; right: 8px; z-index: 1; padding: 4px; background: none; border: 0; color: #fff; opacity: .3; line-height: 0; }
   #rhidden:hover { opacity: .9; background: none; }
   /* Exit button: fullscreen only, fades out while the pointer rests (class "moving" is set on pointer movement) */
-  #fsExit { display: none; position: absolute; top: 8px; right: 8px; z-index: 3; background: #000c; border-color: #555; transition: opacity .3s; }
+  #fsExit { display: none; position: absolute; top: 8px; right: 8px; z-index: 3; background: #000c; border-color: var(--edge); transition: opacity .3s; }
   #stage:fullscreen #fsExit { display: block; }
   #stage:fullscreen:not(.moving) #fsExit:not(:focus-visible) { opacity: 0; }
   #stage:fullscreen #rhidden { top: 52px; }
   /* Fullscreen: the dock is moved into the stage (JS) and slides up while the pointer is near the bottom edge or a control has keyboard focus */
-  #stage > #dock { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; padding-top: 8px; background: #14161bf2; border-top: 1px solid var(--line); transform: translateY(100%); transition: transform .25s; }
+  #stage > #dock { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; padding-top: 8px; background: var(--overlay); border-top: 1px solid var(--line); transform: translateY(100%); transition: transform .25s; }
   #stage.showdock > #dock, #stage > #dock:has(:focus-visible) { transform: none; }
-  #empty { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; color: var(--dim); background: radial-gradient(circle at 50% 40%, #1b1e26, #000 70%); }
+  #empty { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; color: var(--dim); background: radial-gradient(circle at 50% 40%, var(--card), #000 70%); }
   #empty b { font-size: 1.4em; color: var(--text); }
-  #mstate { position: absolute; top: 8px; left: 8px; z-index: 2; padding: 4px 10px; background: #000c; border: 1px solid #555; border-radius: 8px; font-size: .9em; pointer-events: none; }
-  #mstate.err { border-color: #e66; color: #ff8a80; }
-  #toast { position: absolute; top: 8%; left: 50%; transform: translateX(-50%); z-index: 3; padding: 8px 16px; background: #000c; border: 1px solid #555; border-radius: 10px; font-size: 1.2em; pointer-events: none; text-align: center; backdrop-filter: blur(6px); }
-  #keys { position: absolute; inset: 0; margin: auto; width: fit-content; height: fit-content; padding: 16px 24px; background: #000c; border: 1px solid #555; border-radius: 10px; z-index: 2; backdrop-filter: blur(6px); }
+  #mstate { position: absolute; top: 8px; left: 8px; z-index: 2; padding: 4px 10px; background: #000c; border: 1px solid var(--edge); border-radius: 8px; font-size: .9em; pointer-events: none; }
+  #mstate.err { border-color: var(--alert); color: var(--alert-text); }
+  #toast { position: absolute; top: 8%; left: 50%; transform: translateX(-50%); z-index: 3; padding: 8px 16px; background: #000c; border: 1px solid var(--edge); border-radius: 10px; font-size: 1.2em; pointer-events: none; text-align: center; backdrop-filter: blur(6px); }
+  #keys { position: absolute; inset: 0; margin: auto; width: fit-content; height: fit-content; padding: 16px 24px; background: #000c; border: 1px solid var(--edge); border-radius: 10px; z-index: 2; backdrop-filter: blur(6px); }
   #keys td { padding: 4px 10px; }
   #drop { position: absolute; inset: 0; display: flex; z-index: 4; }
-  #drop div { flex: 1; display: grid; place-content: center; text-align: center; font-size: 1.5em; background: #000c; border: 3px dashed #777; }
-  #drop div.over { background: #3a2a00cc; border-color: var(--accent); }
+  #drop div { flex: 1; display: grid; place-content: center; text-align: center; font-size: 1.5em; background: #000c; border: 3px dashed var(--edge); }
+  #drop div.over { background: color-mix(in srgb, var(--accent) 25%, #000c); border-color: var(--accent); }
   #drop small { display: block; font-size: .6em; color: var(--dim); }
 
   /* --- Control dock --- */
   #dock { grid-area: dock; padding: 4px 12px 12px; }
   /* Message: sits at the bottom of the stage (visible in fullscreen too), dismissible, disappears on its own */
-  #msg { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 3; display: flex; align-items: flex-start; gap: 8px; width: max-content; max-width: min(90%, 640px); padding: 8px 8px 8px 14px; background: #1b1e26f2; border: 1px solid #555; border-left: 3px solid #ff8a8a; border-radius: 10px; box-shadow: 0 6px 24px #000a; }
+  #msg { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 3; display: flex; align-items: flex-start; gap: 8px; width: max-content; max-width: min(90%, 640px); padding: 8px 8px 8px 14px; background: var(--overlay); border: 1px solid var(--edge); border-left: 3px solid var(--alert); border-radius: 10px; box-shadow: 0 6px 24px #000a; }
   #msgText { padding: 3px 0; }
   #msgClose { padding: 2px 8px; }
   #seekBox { flex: 1; min-width: 120px; position: relative; display: flex; }
   #seek { flex: 1; }
   /* Two lines below the slider: the reaction (whole timeline) and where the movie lies in it (--a to --b, set in JS).
      10px inset = slider margin + half a thumb, so the lines match the thumb's travel. */
-  #spans { position: absolute; left: 10px; right: 10px; top: calc(100% + 1px); height: 7px; --r: #5aa2ff;
+  #spans { position: absolute; left: 10px; right: 10px; top: calc(100% + 1px); height: 7px; --r: var(--reaction);
     background: linear-gradient(var(--r), var(--r)) top / 100% 3px no-repeat,
       linear-gradient(to right, transparent var(--a, 0%), var(--accent) 0 var(--b, 0%), transparent 0) bottom / 100% 3px no-repeat; }
   #toggle .pause, body.playing #toggle .play { display: none; }
@@ -216,7 +253,7 @@
     #layout selectedcontent { display: flex; align-items: center; gap: 10px; }
     #layout selectedcontent svg { width: 32px; height: 20px; }
     #layout .m { fill: var(--accent); opacity: .45; }
-    #layout .r { fill: #5aa2ff; stroke: var(--card); stroke-width: 1px; }
+    #layout .r { fill: var(--reaction); stroke: var(--card); stroke-width: 1px; }
   }
   /* "Movie starts now": large call to action until an offset is set (not yet pressed, or after Stop); then it moves into the offset card */
   #startBar { display: none; margin: 8px 0; }
@@ -226,16 +263,16 @@
   #startBar .hint { flex: 1 1 100%; text-align: center; font-size: 12px; }
   .autoSync.on { border-color: var(--accent); }
   #startBar .pickBtn { flex: 1 1 100%; }
-  #pickDlg { width: min(94vw, 1000px); padding: 14px 18px; background: #1b1e26; color: var(--text); border: 1px solid #555; border-radius: 12px; }
+  #pickDlg { width: min(94vw, 1000px); padding: 14px 18px; background: var(--card); color: var(--text); border: 1px solid var(--edge); border-radius: 12px; }
   #pickDlg::backdrop { background: #000a; }
   #pickDlg h3 { margin: 0 0 4px; }
   #pickBox { position: relative; line-height: 0; cursor: crosshair; touch-action: none; user-select: none; }
   #pickCanvas { width: 100%; height: auto; display: block; background: #000; }
-  #pickSel { position: absolute; border: 2px solid var(--accent); background: #ffb22426; pointer-events: none; }
+  #pickSel { position: absolute; border: 2px solid var(--accent); background: color-mix(in srgb, var(--accent) 15%, transparent); pointer-events: none; }
   #pickSeek { flex: 1; }
   #startBar .autoSync { flex: 1 1 100%; }
   #startNow { flex: 1 1 100%; padding: 12px 18px; font-size: 1.15em; animation: pulse 4s ease-in-out infinite; }
-  @keyframes pulse { 50% { box-shadow: 0 0 0 5px #ffb22440; } }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 25%, transparent); } }
   @media (prefers-reduced-motion: reduce) { #startNow { animation: none; } }
   .seg { display: inline-flex; }
   .seg button { border-radius: 0; margin-left: -1px; padding: 5px 8px; }
@@ -248,7 +285,7 @@
   #fpsBar { margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--line); }
   #fpsNote { font-variant-numeric: tabular-nums; }
   #fpsBar .hint { flex: 1 1 14em; font-size: 12px; }
-  #found { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 4; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; width: max-content; max-width: min(94%, 700px); padding: 10px 8px 10px 14px; background: #1b1e26f2; border: 1px solid #555; border-left: 3px solid var(--accent); border-radius: 10px; box-shadow: 0 6px 24px #000a; }
+  #found { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 4; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; width: max-content; max-width: min(94%, 700px); padding: 10px 8px 10px 14px; background: var(--overlay); border: 1px solid var(--edge); border-left: 3px solid var(--accent); border-radius: 10px; box-shadow: 0 6px 24px #000a; }
   #found .bar { margin: 0; }
   /* Offset card: the value always sits between its − and + steps; the steps get tighter first and only a phone-wide card stacks them */
   .card.wide { container-type: inline-size; }
@@ -346,6 +383,8 @@
     </div>
     <h3 data-t>Language</h3>
     <div id="lang"></div>
+    <h3 data-t>Color scheme</h3>
+    <div id="scheme"></div>
     <h3 data-t>Jellyfin account</h3>
     <form id="jfLogin">
       <input id="server" placeholder="http://jellyfin:8096">
@@ -518,7 +557,7 @@ const I18N = { de: {
   'Username': 'Benutzername', 'Password': 'Passwort', 'Sign in': 'Anmelden', 'Signed in as': 'Angemeldet als', 'Sign out': 'Abmelden',
   'Install as app': 'Als App installieren', 'Afterwards GL00TZR starts like a program of its own – even without the server running.': 'Danach startet GL00TZR wie ein eigenes Programm – auch ohne laufenden Server.',
   'Title, Jellyfin id or link…': 'Titel, Jellyfin-Id oder -Link…', 'Sign in to Jellyfin in the settings first': 'Erst in den Einstellungen bei Jellyfin anmelden',
-  'Language': 'Sprache', 'Jellyfin account': 'Jellyfin-Konto', 'Settings: Jellyfin account and language': 'Einstellungen: Jellyfin-Konto und Sprache',
+  'Language': 'Sprache', 'Color scheme': 'Farbschema', 'Jellyfin account': 'Jellyfin-Konto', 'Settings: Jellyfin account and language': 'Einstellungen: Jellyfin-Konto und Sprache',
   'Select': 'Auswählen', '(empty)': '(leer)', 'Load more ({0} of {1})': 'Weitere laden ({0} von {1})', 'Resume': 'Fortsetzen', 'None yet.': 'Noch keine.', 'at': 'bei',
   // Stage
   'Nothing loaded yet': 'Noch nichts geladen',
@@ -633,6 +672,24 @@ for (const [l, { name, flag }] of Object.entries(LANGS)) { // flags as SVG: Wind
   b.classList.toggle('on', l === lang);
   $('lang').append(b);
 }
+// Color schemes (SCHEMES, applyScheme: top of the page): one button per scheme with its five colors; the choice is stored
+function setScheme(id) {
+  if (!SCHEMES[id]) id = 'sunset';
+  applyScheme(id); store('rwScheme', id);
+  for (const b of $('scheme').children) b.classList.toggle('on', b.dataset.scheme === id);
+  // Title bar of the installed app: the header's color, through a canvas pixel as plain hex (the computed value is an oklab() mix)
+  const cx = document.createElement('canvas').getContext('2d');
+  cx.fillStyle = getComputedStyle(document.querySelector('header')).backgroundColor; cx.fillRect(0, 0, 1, 1);
+  document.querySelector('meta[name=theme-color]').content = '#' + [...cx.getImageData(0, 0, 1, 1).data].slice(0, 3).map(n => n.toString(16).padStart(2, '0')).join('');
+}
+for (const [id, s] of Object.entries(SCHEMES)) {
+  const b = document.createElement('button'), sw = document.createElement('span');
+  b.dataset.scheme = id; b.onclick = () => setScheme(id);
+  sw.className = 'sw'; sw.append(...s.colors.map(c => Object.assign(document.createElement('i'), { style: `background:${c}` })));
+  b.append(sw, s.name);
+  $('scheme').append(b);
+}
+setScheme(stored('rwScheme', 'sunset'));
 // Layout sketches inside the dropdown's options, next to the text (customisable <select>: Chromium 135+; elsewhere the plain text list).
 // The text moves into a data-t span first, so that translating it does not wipe the picture.
 const LAYOUT_ICON = { // [movie, reaction] as x, y, width, height in a 32×20 frame
