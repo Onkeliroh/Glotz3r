@@ -31,14 +31,18 @@ function sync(force) {
   }
   const drift = S.currentTime - t, abs = Math.abs(drift); // drift > 0: the movie is ahead
   $('drift').textContent = `Drift ${Math.round(drift * 1000)} ms`;
-  if (force || abs > (M.paused ? 0.001 : 0.5)) {
+  // Without rate nudging the movie is only corrected by a seek, so it seeks at a smaller drift, but at most every few seconds
+  // (a seek's own error must not trigger the next one right away)
+  const seekAbove = M.paused ? 0.001 : NUDGE ? 0.5 : 0.12;
+  if (force || (abs > seekAbove && (M.paused || NUDGE || performance.now() - lastSeek > 3000))) {
     // Seek exactly while paused. While playing, lead by the most recently measured seek duration,
     // otherwise the movie lags again after rebuffering and seeks once more (stutter).
-    seekAt = performance.now();
+    seekAt = lastSeek = performance.now();
     S.currentTime = t + (M.paused ? 0 : lead);
     correcting = true;
     setRate(tempo);
-  } else if (!M.paused && S.readyState >= 3) {
+  } else if (!NUDGE) setRate(tempo); // the movie keeps one constant rate
+  else if (!M.paused && S.readyState >= 3) {
     // Change the rate rarely and in fixed steps: every change disturbs the movie's audio output.
     // Correction starts above 40 ms (or after an offset change/seek) and ends below 5 ms.
     if (abs > 0.04) correcting = true;
@@ -47,7 +51,14 @@ function sync(force) {
   }
   if (M.paused) S.pause(); else if (S.paused) S.play().catch(playErr);
 }
-let correcting = true, lead = 0, seekAt = 0, startTimer = 0, startLatency = 0.1, playCallAt = 0; // startLatency: s from play() until the movie runs
+let correcting = true, lead = 0, seekAt = 0, lastSeek = 0, startTimer = 0, startLatency = 0.1, playCallAt = 0; // startLatency: s from play() until the movie runs
+// Small playbackRate steps keep the movie on time without a seek. Firefox, though, lets picture and sound drift apart when the
+// rate keeps changing (https://bugzilla.mozilla.org/show_bug.cgi?id=1762617, open; pause/play fixes it), so there the movie
+// runs at one constant rate and drift is corrected by rare seeks instead. Chrome and Safari keep the smooth nudging.
+// ponytail: a seek lands only within ~50–90 ms (measured), and smaller drift is left alone in Firefox; learn the seek's own error
+// into `lead` if that offset to the reaction ever matters
+
+const NUDGE = !/Firefox\//.test(navigator.userAgent);
 export const playErr = e => e.name === 'AbortError' || msg(e.message); // AbortError: our own pause()/load interrupted a pending play()
 const setRate = r => { if (S.playbackRate !== r) S.playbackRate = r; };
 
