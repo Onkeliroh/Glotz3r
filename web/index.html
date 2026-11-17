@@ -229,7 +229,7 @@
   #jfPath button:not(:first-child)::before { content: '›'; margin-right: 6px; color: var(--dim); }
   #jfPath button:last-child { font-weight: 600; }
   #jfItems { flex: 1; min-height: 0; overflow: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; align-content: start; }
-  #jfItems > :not(.it) { grid-column: 1 / -1; justify-self: start; }
+  #jfItems > :not(.it, details) { grid-column: 1 / -1; justify-self: start; }
   #jfItems .it { display: flex; flex-direction: column; gap: 6px; padding: 6px; text-align: left; white-space: normal; background: none; border-color: transparent; min-width: 0; }
   #jfItems .it:hover { background: var(--ctl); }
   #jfItems .it > :first-child { width: 100%; aspect-ratio: 2 / 3; object-fit: contain; background: #0000004d; border-radius: 6px; }
@@ -238,6 +238,10 @@
   #jfDlg.list #jfItems { grid-template-columns: 1fr; gap: 0; }
   #jfDlg.list .it { flex-direction: row; align-items: center; gap: 10px; padding: 3px 6px; }
   #jfDlg.list .it > :first-child { width: 30px; flex: none; }
+  #jfDlg.tree summary.it::before { content: '▸'; width: 1em; flex: none; color: var(--dim); }
+  #jfDlg.tree details[open] > summary.it::before { content: '▾'; }
+  #jfDlg.tree details > div { margin-left: 22px; }
+  #jfDlg.tree button.it { width: 100%; padding-left: calc(6px + 1em + 10px); } /* lined up with the folders' text after the arrow */
   #jfDlg .seg .on { background: var(--accent); border-color: var(--accent); color: #1a1200; }
   #pickDlg h3 { margin: 0 0 4px; }
   #pickBox { position: relative; line-height: 0; cursor: crosshair; touch-action: none; user-select: none; }
@@ -491,7 +495,7 @@
   <div class="bar">
     <input id="jfQ" type="search" placeholder="Title, Jellyfin id or link…">
     <button id="jfSearch" data-i="search" data-t>Search</button>
-    <span class="seg"><button id="jfGrid" data-t>Grid</button><button id="jfList" data-t>List</button></span>
+    <span class="seg" id="jfViews"><button data-v="grid" data-t>Grid</button><button data-v="list" data-t>List</button><button data-v="tree" data-t>Tree</button></span>
     <button id="jfClose" class="flat" title="Close">✕</button>
   </div>
   <nav id="jfPath" class="bar"></nav>
@@ -537,7 +541,7 @@ const I18N = { de: {
   'Install as app': 'Als App installieren', 'Afterwards GL00TZR starts like a program of its own – even without the server running.': 'Danach startet GL00TZR wie ein eigenes Programm – auch ohne laufenden Server.',
   'Title, Jellyfin id or link…': 'Titel, Jellyfin-Id oder -Link…', 'Sign in to Jellyfin in the settings first': 'Erst in den Einstellungen bei Jellyfin anmelden',
   'Language': 'Sprache', 'Jellyfin account': 'Jellyfin-Konto', 'Settings: Jellyfin account and language': 'Einstellungen: Jellyfin-Konto und Sprache',
-  'Browse Jellyfin…': 'Jellyfin durchsuchen…', 'Libraries': 'Mediatheken', 'Grid': 'Raster', 'List': 'Liste', 'Close': 'Schließen', 'Search: {0}': 'Suche: {0}',
+  'Browse Jellyfin…': 'Jellyfin durchsuchen…', 'Libraries': 'Mediatheken', 'Grid': 'Raster', 'List': 'Liste', 'Tree': 'Baum', 'Close': 'Schließen', 'Search: {0}': 'Suche: {0}',
   '(empty)': '(leer)', 'Load more ({0} of {1})': 'Weitere laden ({0} von {1})', 'Resume': 'Fortsetzen', 'None yet.': 'Noch keine.', 'at': 'bei',
   // Stage
   'Nothing loaded yet': 'Noch nichts geladen',
@@ -1888,6 +1892,7 @@ const jfItem = it => ({ key: `jf:${it.Id}`, name: jfName(it), id: it.Id });
 
 // Picker dialog: libraries → movies or series → season → episode, or search results. Each slot keeps its own path.
 // trail: the folders above the shown list, [{ Id, Name }] or a search { q, Name }; [] = the user's libraries.
+// Views: grid of posters, list, or tree (folders open in place instead of navigating).
 const noVideo = ['music', 'books', 'photos', 'livetv', 'playlists'];
 let jfBox, jfSeq = 0;
 function jfOpen(box) {
@@ -1895,54 +1900,63 @@ function jfOpen(box) {
   $('jfDlg').showModal();
   jfShow(box.trail ?? []);
 }
-async function jfShow(trail, start = 0) {
-  const seq = start ? jfSeq : ++jfSeq, last = trail.at(-1), list = $('jfItems'), box = jfBox;
-  const note = text => { const p = document.createElement('p'); p.className = 'hint'; p.textContent = text; return p; };
-  if (!start) {
-    box.trail = trail;
-    $('jfPath').replaceChildren(...[{ Name: t('Libraries') }, ...trail].map((f, i) => btn(f.Name, () => jfShow(trail.slice(0, i)))));
-    $('jfPath').lastChild.className = 'flat';
-    list.replaceChildren();
-    list.scrollTop = 0;
-  }
-  const id = last?.q && jfId(last.q);
+function jfShow(trail) {
+  jfBox.trail = trail; jfSeq++;
+  $('jfPath').replaceChildren(...[{ Name: t('Libraries') }, ...trail].map((f, i) => btn(f.Name, () => jfShow(trail.slice(0, i)))));
+  $('jfPath').lastChild.className = 'flat';
+  $('jfItems').replaceChildren();
+  $('jfItems').scrollTop = 0;
+  jfLoad($('jfItems'), trail);
+}
+const jfNote = text => { const p = document.createElement('p'); p.className = 'hint'; p.textContent = text; return p; };
+async function jfLoad(el, trail, start = 0) { // appends the trail's content to el; false if it failed
+  const seq = jfSeq, last = trail.at(-1), box = jfBox, id = last?.q && jfId(last.q), tree = $('jfDlg').classList.contains('tree');
   try {
     const { Items, TotalRecordCount } = !last ? await api(`UserViews?userId=${jf.userId}`) : await api(`Items?${new URLSearchParams({
       userId: jf.userId, EnableImageTypes: 'Primary', ImageTypeLimit: 1, StartIndex: start, Limit: 200,
       ...(id ? { ids: id } : last.q ? { searchTerm: last.q, Recursive: true, IncludeItemTypes: 'Movie,Series,Episode,Video' } : { parentId: last.Id, SortBy: 'IsFolder,SortName' }),
     })}`);
-    if (seq !== jfSeq) return; // the user moved on meanwhile
-    list.querySelector(':scope > .more')?.remove();
-    list.append(...Items.filter(it => !noVideo.includes(it.CollectionType) && (it.IsFolder || it.MediaType === 'Video')).map(it => {
-      const card = btn('', () => it.IsFolder ? jfShow([...trail, { Id: it.Id, Name: it.Name }]) : (box.pick(jfItem(it)), $('jfDlg').close()));
-      card.className = 'it';
+    if (seq !== jfSeq) return true; // the user moved on meanwhile
+    el.querySelector(':scope > .more')?.remove();
+    el.append(...Items.filter(it => !noVideo.includes(it.CollectionType) && (it.IsFolder || it.MediaType === 'Video')).map(it => {
+      const path = [...trail, { Id: it.Id, Name: it.Name }];
       const pic = document.createElement(it.ImageTags?.Primary ? 'img' : 'i'), text = document.createElement('span'), name = document.createElement('b'), year = document.createElement('small');
       if (it.ImageTags?.Primary) Object.assign(pic, { loading: 'lazy', alt: '', src: `${base()}Items/${it.Id}/Images/Primary?fillHeight=300&quality=90&tag=${encodeURIComponent(it.ImageTags.Primary)}` });
       name.textContent = it.Type !== 'Episode' ? it.Name : last.q ? jfName(it) : `${it.IndexNumber ?? '?'}. ${it.Name}`; // inside a season the number is enough
       year.textContent = it.ProductionYear ?? '';
       text.append(name, year);
+      if (tree && it.IsFolder) { // loaded on first opening; a failed load is retried on the next
+        const d = document.createElement('details'), sum = document.createElement('summary'), sub = document.createElement('div');
+        sum.className = 'it'; sum.append(pic, text); d.append(sum, sub);
+        d.ontoggle = () => { if (d.open && !d.loaded) { sub.replaceChildren(); d.loaded = jfLoad(sub, path).then(ok => ok || (d.loaded = null)); } };
+        return d;
+      }
+      const card = btn('', () => it.IsFolder ? jfShow(path) : (box.pick(jfItem(it)), $('jfDlg').close()));
+      card.className = 'it';
       card.append(pic, text);
       return card;
     }));
-    if (!TotalRecordCount) list.append(note(t(last?.q ? 'Nothing found.' : '(empty)')));
+    if (!TotalRecordCount) el.append(jfNote(t(last?.q ? 'Nothing found.' : '(empty)')));
     if (last && start + Items.length < TotalRecordCount) {
-      const more = btn(t('Load more ({0} of {1})', start + Items.length, TotalRecordCount), () => jfShow(trail, start + Items.length));
+      const more = btn(t('Load more ({0} of {1})', start + Items.length, TotalRecordCount), () => jfLoad(el, trail, start + Items.length));
       more.className = 'more';
-      list.append(more);
+      el.append(more);
     }
-  } catch (e) { if (seq === jfSeq) list.append(note(`Jellyfin: ${e.message}`)); }
+    return true;
+  } catch (e) { if (seq === jfSeq) el.append(jfNote(`Jellyfin: ${e.message}`)); return false; }
 }
 const jfSearch = () => { const q = $('jfQ').value.trim(); if (q) jfShow([{ q, Name: t('Search: {0}', q) }]); };
 $('jfQ').onkeydown = e => { if (e.key === 'Enter') jfSearch(); }; // no return value: false would discard the keystroke
 $('jfSearch').onclick = jfSearch;
 $('jfClose').onclick = () => $('jfDlg').close();
 function jfView(v) {
+  const dlg = $('jfDlg'), wasTree = dlg.classList.contains('tree');
   setUi('JfView', v);
-  $('jfDlg').classList.toggle('list', v === 'list');
-  $('jfGrid').classList.toggle('on', v !== 'list'); $('jfList').classList.toggle('on', v === 'list');
+  dlg.classList.toggle('list', v !== 'grid'); dlg.classList.toggle('tree', v === 'tree');
+  for (const b of $('jfViews').children) b.classList.toggle('on', b.dataset.v === v);
+  if (dlg.open && wasTree !== (v === 'tree')) jfShow(jfBox.trail); // folders become buttons or <details>
 }
-$('jfGrid').onclick = () => jfView('grid');
-$('jfList').onclick = () => jfView('list');
+for (const b of $('jfViews').children) b.onclick = () => jfView(b.dataset.v);
 jfView(ui('JfView', 'grid'));
 
 // --- Installable as an app (PWA): sw.js keeps the page cached so it starts without the server running ---
