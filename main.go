@@ -40,7 +40,13 @@ func main() {
 	mime.AddExtensionType(".js", "text/javascript; charset=utf-8")
 	mime.AddExtensionType(".webmanifest", "application/manifest+json")
 	files, _ := fs.Sub(web, "web")
-	http.Handle("/", http.FileServer(http.FS(files)))
+	static := http.FileServer(http.FS(files))
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		// Always ask again: without it browsers (Firefox above all) guess a lifetime and keep serving old scripts after an update.
+		// ponytail: no ETag (embedded files have no date), so every load fetches the files in full; fine on localhost
+		w.Header().Set("Cache-Control", "no-cache")
+		static.ServeHTTP(w, r)
+	})
 	http.HandleFunc("/config.json", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		json.NewEncoder(w).Encode(map[string]string{"jellyfin": *jellyfin})

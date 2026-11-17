@@ -8,7 +8,7 @@ Watch reaction videos in sync with your own movie or series. The reaction sets t
 
 ![GL00TZR with a movie and a reaction side by side, the sessions panel on the left and the offset, volume and view controls below](docs/screenshot.png)
 
-The whole application is a single web page ([web/index.html](web/index.html)). A small executable serves it locally and opens it in the browser.
+The whole application is a static web page in [web/](web) ([index.html](web/index.html) with its [style.css](web/style.css) and scripts in [web/js/](web/js)). A small executable serves it locally and opens it in the browser.
 
 ## Build and run
 
@@ -26,7 +26,7 @@ go build -ldflags "-s -w" -o glotz3r.exe .
 
 Then start `glotz3r.exe` with a double click. The page opens in the browser at `http://127.0.0.1:8097`. Closing the console window stops GL00TZR.
 
-`web/index.html` is embedded into the executable at build time, so rebuild after changing the page. If the old version is still running during the build, it is left behind as `glotz3r.exe~` and can be deleted once it is closed.
+`web/` is embedded into the executable at build time, so rebuild after changing the page. If the old version is still running during the build, it is left behind as `glotz3r.exe~` and can be deleted once it is closed.
 
 For other systems (Git Bash syntax; in PowerShell set `$env:CGO_ENABLED = "0"`, `$env:GOOS = "linux"` and `$env:GOARCH = "amd64"` first):
 
@@ -54,10 +54,9 @@ go run .
 
 ### Without the Go server
 
-The Go executable is not a requirement. It only exists because I was too lazy to deploy the page on another server. GL00TZR is a static page, so there are two other ways to run it:
+The Go executable is not a requirement. It only exists because I was too lazy to deploy the page on another server. GL00TZR is a static page, so **any web server** (nginx or similar) can serve the contents of `web/` instead. Installing it as an app works there too. Only `config.json` normally comes from the Go server; it is optional, and a file with `{"jellyfin": "https://…"}` presets the Jellyfin address.
 
-- **Any web server** (nginx or similar): serve the contents of `web/`. Installing it as an app works there too. Only `config.json` normally comes from the Go server; it is optional, and a file with `{"jellyfin": "https://…"}` presets the Jellyfin address.
-- **No server at all:** open [web/index.html](web/index.html) directly in the browser. This works without installing it as an app (PWA), and YouTube reactions are not available because YouTube embedding needs http/https.
+Opening `web/index.html` directly from disk does not work: the scripts are ES modules, which browsers only load via http/https. For development without Go, any static server does, for example `npx serve web` or `python -m http.server -d web`.
 
 ## Usage
 
@@ -103,13 +102,13 @@ Offset, frame rates and position are saved automatically per reaction in the bro
 
 ### Language
 
-English and German, switchable on the settings tab (gear icon) of the menu; the default is the browser language. Another language only needs an entry in `LANGS` and a dictionary in `I18N` (both in `web/index.html`; the key is the English text). Missing translations are reported in the browser console.
+English and German, switchable on the settings tab (gear icon) of the menu; the default is the browser language. Another language only needs an entry in `LANGS` and a dictionary in `I18N` (both in `web/js/i18n.js`; the key is the English text). Missing translations are reported in the browser console.
 
 ### Color scheme
 
 The settings tab offers color schemes; the choice is saved in the browser. The default is *Warm Sunset Journey for Cinematic Road Trips*. The others are *Ethereal Pastel Cinematic Dreamscape Palette*, *Cinematic Time Travel: A Colorful Journey*, *Cinematic Glamour with Gold Shimmer* and *Classic*, which is close to the earlier look. Each scheme is five colors, and every color of the interface is derived from them. The schemes come from the cinematic palettes at <https://colorany.com/color-palettes/cinematic-color-palettes/>.
 
-To add one, add an entry to `SCHEMES` at the top of `web/index.html`. List its five colors in role order, not in the palette's order:
+To add one, add an entry to `SCHEMES` in `web/js/schemes.js`. List its five colors in role order, not in the palette's order:
 
 1. **accent**: buttons, focus, the movie in the layout sketches and on the seek bar
 2. **reaction**: the reaction in the layout sketches and on the seek bar
@@ -126,12 +125,12 @@ GL00TZR can be installed as an app (PWA). It then starts like a program of its o
 1. Start the `.exe` once and open the page in Chrome or Edge.
 2. In the menu under settings (gear icon) press **Install as app**, or use the install icon in the address bar.
 
-The app runs at the same address (`http://127.0.0.1:8097`), so login and sessions are kept. The browser keeps the page cached. After changing `web/index.html`, start the `.exe` once and open the app; it then fetches the new version. Firefox cannot install apps, but after the first visit it also opens the page at that address without the server.
+The app runs at the same address (`http://127.0.0.1:8097`), so login and sessions are kept. The browser keeps the page cached. After changing files in `web/`, start the `.exe` once and open the app; it then fetches the new version. Firefox cannot install apps, but after the first visit it also opens the page at that address without the server.
 
 ## Good to know
 
 - **Storage:** Login, sessions and settings live in the browser and apply per address. `http://127.0.0.1:8097` and `http://localhost:8097` are two separate stores for the browser, and so is a different port.
-- **YouTube** only works when the page is served via http/https, not when `index.html` is opened directly with a double click. Some videos do not allow embedding.
+- **YouTube:** some videos do not allow embedding.
 - **Pauses in the reaction video:** If the person in the video pauses their movie, the offset shifts and has to be readjusted by hand.
 
 ## Releasing
@@ -154,7 +153,21 @@ The workflow builds the executables for Windows, Linux and macOS, packs `web/` i
 
 | File | Purpose |
 |---|---|
-| `web/index.html` | The entire application (HTML, CSS, JavaScript) |
+| `web/index.html` | The page's markup; loads the style sheet, `js/schemes.js` and the entry module `js/main.js` |
+| `web/style.css` | All styles; the colors come from the scheme variables at the top |
+| `web/js/schemes.js` | Color schemes, applied before the page is drawn (a classic script in `<head>`, so no colors flash) |
+| `web/js/main.js` | Entry module: runs each module's `start()` in a fixed order |
+| `web/js/base.js` | Basics: element lookup, version (stamped by the release), storage, messages |
+| `web/js/i18n.js`, `look.js` | Translations; scheme picker and layout sketches |
+| `web/js/youtube.js`, `sync.js` | YouTube player adapter; keeping the movie in sync with the reaction |
+| `web/js/detect.js`, `picture.js` | Automatic detection of the movie start; marking the movie's picture in the reaction |
+| `web/js/sources.js`, `link.js`, `panel.js` | Loading sources, sessions; session links; menu panel state |
+| `web/js/jellyfin.js`, `app.js` | Jellyfin sign-in, playback and picker; language buttons, app install, update notice and start |
+
+The scripts are ES modules: each file names what it imports and exports. The modules import each other in cycles (for example, `sync.js` and `sources.js` call each other), so the order in which the browser evaluates them is not fixed. Hence two rules:
+
+- **Load time only defines.** At module level there are only imports, functions and variables. Anything that touches the page (event handlers, the first display) goes into the module's `export function start()`, which `main.js` calls in order. Only the leaf modules `base.js` and `i18n.js` import nothing from the others, so they may run code at load time.
+- **Imports are read-only.** A module cannot assign to a variable it imports. Shared state that other modules change has a small writer function in its home module (`setMaster`, `unmark`, `setPicRect`, `takePending`, …).
 | `web/sw.js`, `web/manifest.webmanifest`, `web/icon-*.png` | Make the page installable as an app; `sw.js` keeps it in the browser cache |
 | `docs/screenshot.png` | Screenshot for this README |
 | `main.go`, `go.mod` | Small local server that serves the embedded files from `web/` |
